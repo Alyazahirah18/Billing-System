@@ -1,0 +1,200 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useNavigate, Link } from 'react-router-dom';
+import logo_signal from '../assets/logo_signal.png';
+
+const StaffLogin = ({ setUser }) => {
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        role: 'admin',
+        username: '',
+        password: '',
+    });
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post('http://localhost:5000/api/auth/staff-login', formData);
+
+            const userData = res.data.user;
+            setUser(userData);
+
+            // Simpan ke localStorage agar persist saat refresh
+            localStorage.setItem('user', JSON.stringify(userData));
+            localStorage.setItem('token', res.data.token);
+
+            // Redirect berdasarkan role
+            if (userData.role === 'admin') {
+                navigate('/admin-dashboard');
+            } else if (userData.role === 'teknisi') {
+                navigate('/teknisi-dashboard');
+            } else if (userData.role === 'owner') {
+                navigate('/owner-dashboard');
+            }
+        } catch (err) {
+            alert("Login Gagal: " + (err.response?.data?.message || err.message));
+        }
+    };
+
+    return (
+        <div style={styles.pageWrapper}>
+            {/* Navbar */}
+            <nav style={styles.navbar}>
+                <div style={styles.navLeft}>
+                    <img src={logo_signal} alt="Logo" style={styles.logo} />
+                </div>
+                <div style={styles.navRight}>
+                    {/* Empty navRight as requested */}
+                </div>
+            </nav>
+
+            {/* Content */}
+            <div style={styles.contentArea}>
+                <div style={styles.headerRow}>
+                    <button onClick={() => navigate('/')} style={styles.backButton}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <h2 style={styles.pageTitle}>Login Staff</h2>
+                </div>
+
+                {/* Login Card */}
+                <div style={styles.loginCard}>
+                    <form onSubmit={handleSubmit} style={styles.form}>
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Pilih Role</label>
+                            <div style={styles.selectWrapper}>
+                                <select
+                                    name="role"
+                                    value={formData.role}
+                                    onChange={handleChange}
+                                    style={styles.select}
+                                >
+                                    <option value="admin">Admin</option>
+                                    <option value="teknisi">Teknisi</option>
+                                    <option value="owner">Owner</option>
+                                </select>
+                                <div style={styles.dropdownIcon}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#333" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M7 10l5 5 5-5H7z" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Username</label>
+                            <input
+                                type="text"
+                                name="username"
+                                placeholder="Masukkan Username"
+                                value={formData.username}
+                                onChange={handleChange}
+                                required
+                                style={styles.input}
+                            />
+                        </div>
+
+                        <div style={styles.formGroup}>
+                            <label style={styles.label}>Password</label>
+                            <input
+                                type="password"
+                                name="password"
+                                placeholder="Masukkan Password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                                style={styles.input}
+                            />
+                        </div>
+
+                        <div style={styles.buttonRow}>
+                            <button type="submit" style={styles.submitButton}>
+                                Login
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {/* Footer */}
+            <footer style={styles.footer}>
+                <p style={styles.footerText}>© 2000 - Company, Inc. All rights reserved. Address Address</p>
+                <p style={styles.footerText}>Contact Us: 08xx-xxx-xxx</p>
+            </footer>
+        </div>
+    );
+};
+
+const styles = {
+    pageWrapper: {
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        backgroundColor: '#f5f7fb',
+        fontFamily: "'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif",
+    },
+    navbar: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 40px',
+        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
+        boxShadow: '0 2px 8px rgba(91,79,207,0.25)',
+    },
+    navLeft: { display: 'flex', alignItems: 'center' },
+    navRight: { display: 'flex', alignItems: 'center', gap: '28px' },
+    logo: { height: '40px' },
+    navLink: { color: '#fff', textDecoration: 'none', fontSize: '16px', fontWeight: '600' },
+    contentArea: { flex: 1, padding: '24px 50px 40px' },
+    headerRow: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' },
+    backButton: {
+        width: '38px', height: '38px', borderRadius: '50%', backgroundColor: '#5b6abf',
+        border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', boxShadow: '0 2px 6px rgba(91,106,191,0.3)', padding: 0
+    },
+    pageTitle: { fontSize: '20px', fontWeight: '700', color: '#1a1a2e', margin: 0 },
+    loginCard: {
+        background: 'linear-gradient(135deg, #5b6abf 0%, #6c7af7 50%, #5b6abf 100%)',
+        borderRadius: '14px', padding: '50px 80px', maxWidth: '700px',
+        margin: '0 auto', boxShadow: '0 4px 20px rgba(91,106,191,0.3)',
+    },
+    form: { display: 'flex', flexDirection: 'column' },
+    formGroup: { marginBottom: '22px' },
+    label: { fontSize: '14px', fontWeight: '600', color: '#fff', marginBottom: '8px', display: 'block', textAlign: 'left' },
+    input: {
+        padding: '13px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.3)',
+        fontSize: '14px', color: '#333', outline: 'none', backgroundColor: '#fff',
+        boxSizing: 'border-box', width: '100%'
+    },
+    selectWrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
+    select: {
+        padding: '13px 16px', paddingRight: '40px', borderRadius: '8px',
+        border: '1px solid rgba(255,255,255,0.3)', fontSize: '14px', color: '#333',
+        outline: 'none', backgroundColor: '#fff', appearance: 'none',
+        WebkitAppearance: 'none', boxSizing: 'border-box', width: '100%', cursor: 'pointer'
+    },
+    dropdownIcon: {
+        position: 'absolute', right: '12px', pointerEvents: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+    },
+    buttonRow: { display: 'flex', justifyContent: 'flex-end', marginTop: '8px' },
+    submitButton: {
+        padding: '12px 40px', borderRadius: '8px', border: 'none',
+        background: 'linear-gradient(135deg, #7c6fd4, #9b8ce8)', color: '#fff',
+        fontSize: '15px', fontWeight: '600', cursor: 'pointer',
+        boxShadow: '0 3px 10px rgba(108,99,255,0.3)', letterSpacing: '0.3px'
+    },
+    footer: {
+        padding: '16px 40px', background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
+        textAlign: 'center'
+    },
+    footerText: { color: '#fff', fontSize: '12px', margin: '2px 0', letterSpacing: '0.3px' }
+};
+
+export default StaffLogin;
