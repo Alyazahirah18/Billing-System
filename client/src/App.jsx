@@ -12,9 +12,11 @@ import UpgradeLayanan from './components/UpgradeLayanan.jsx';
 import AduanKeluhan from './components/AduanKeluhan.jsx';
 import PenjadwalanUlang from './components/PenjadwalanUlang.jsx';
 import Notifikasi from './components/Notifikasi.jsx';
+import Tagihan from './components/Tagihan.jsx';
 import StaffLogin from './components/StaffLogin.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import AdminManajemenPelanggan from './components/AdminManajemenPelanggan.jsx';
+import AdminManajemenTagihan from './components/AdminManajemenTagihan.jsx';
 import AdminManajemenLayanan from './components/AdminManajemenLayanan.jsx';
 import AdminManajemenLayananUpgrade from './components/AdminManajemenLayananUpgrade.jsx';
 import AdminManajemenLayananAduan from './components/AdminManajemenLayananAduan.jsx';
@@ -60,9 +62,9 @@ function AppContent() {
           },
           body: JSON.stringify({ fcm_token: token })
         })
-        .then(res => res.json())
-        .then(data => console.log("FCM Token saved:", data))
-        .catch(err => console.error("Error saving FCM token:", err));
+          .then(res => res.json())
+          .then(data => console.log("FCM Token saved:", data))
+          .catch(err => console.error("Error saving FCM token:", err));
       }
     });
 
@@ -122,6 +124,13 @@ function AppContent() {
           </ProtectedRoute>
         } />
 
+        {/* Tagihan — diakses melalui sidebar dashboard */}
+        <Route path="/tagihan" element={
+          <ProtectedRoute user={user} setUser={setUser}>
+            <Tagihan user={user} />
+          </ProtectedRoute>
+        } />
+
         {/* Upgrade Layanan — diakses melalui sidebar dashboard */}
         <Route path="/upgrade-layanan" element={
           <ProtectedRoute user={user} setUser={setUser}>
@@ -152,25 +161,31 @@ function AppContent() {
 
         {/* RBAC Staff Routes */}
         <Route path="/staff-login" element={<StaffLogin setUser={setUser} />} />
-        
+
         <Route path="/admin-dashboard" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <AdminDashboard user={user} />
           </ProtectedRoute>
         } />
-        
+
         <Route path="/admin/manajemen-pelanggan" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <AdminManajemenPelanggan user={user} />
           </ProtectedRoute>
         } />
-        
+
+        <Route path="/admin/manajemen-tagihan" element={
+          <ProtectedRoute user={user} setUser={setUser}>
+            <AdminManajemenTagihan user={user} />
+          </ProtectedRoute>
+        } />
+
         <Route path="/admin/manajemen-layanan" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <AdminManajemenLayanan user={user} />
           </ProtectedRoute>
         } />
-        
+
         <Route path="/admin/layanan/upgrade" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <AdminManajemenLayananUpgrade user={user} />
@@ -194,7 +209,7 @@ function AppContent() {
             <AdminManajemenETicketing user={user} />
           </ProtectedRoute>
         } />
-        
+
         <Route path="/teknisi-dashboard" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <TeknisiDashboard user={user} />
@@ -212,7 +227,7 @@ function AppContent() {
             <TeknisiRiwayatPenugasan user={user} />
           </ProtectedRoute>
         } />
-        
+
         <Route path="/owner-dashboard" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <OwnerDashboard user={user} />

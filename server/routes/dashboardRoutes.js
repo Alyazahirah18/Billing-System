@@ -264,6 +264,93 @@ router.get('/admin', verifyToken, async (req, res) => {
 });
 
 // ============================================
+// GET /api/dashboard/owner
+// Data untuk Owner Dashboard
+// ============================================
+router.get('/owner', verifyToken, async (req, res) => {
+    try {
+        const { Pelanggan, Paket, Aduan } = require('../models');
+        const { Op } = require('sequelize');
+
+        // 1. Total Pelanggan Aktif
+        const totalPelanggan = await Pelanggan.count({
+            where: { STATUS_PELANGGAN: 'aktif' }
+        });
+
+        // 2. Disconnect (Pelanggan aktif yang terblokir layanannya)
+        const disconnect = await Pelanggan.count({
+            where: {
+                STATUS_PELANGGAN: 'aktif',
+                STATUS_LAYANAN: 'blokir'
+            }
+        });
+
+        // 3. Total Aduan
+        const totalAduan = await Aduan.count();
+
+        // 4. Total Paket Layanan
+        const totalPaket = await Paket.count();
+
+        // 5. Ambil data tren pelanggan (pelanggan mulai berlangganan per bulan)
+        const pelangganAktif = await Pelanggan.findAll({
+            where: { STATUS_PELANGGAN: 'aktif' },
+            attributes: ['TANGGAL_AKTIVASI', 'ALAMAT_WILAYAH']
+        });
+
+        // Inisialisasi hitungan per bulan (Jan - Des)
+        const monthlyCounts = Array(12).fill(0);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agst', 'Sept', 'Okt', 'Nov', 'Des'];
+
+        // Inisialisasi hitungan per wilayah
+        const wilayahCounts = {};
+
+        pelangganAktif.forEach(p => {
+            // Grouping Bulan berdasarkan TANGGAL_AKTIVASI
+            if (p.TANGGAL_AKTIVASI) {
+                const date = new Date(p.TANGGAL_AKTIVASI);
+                const monthIndex = date.getMonth(); // 0-11
+                if (monthIndex >= 0 && monthIndex < 12) {
+                    monthlyCounts[monthIndex]++;
+                }
+            }
+
+            // Grouping Wilayah berdasarkan ALAMAT_WILAYAH
+            const wilayah = p.ALAMAT_WILAYAH || 'Lainnya';
+            wilayahCounts[wilayah] = (wilayahCounts[wilayah] || 0) + 1;
+        });
+
+        // Format data untuk grafik tren
+        const trendData = months.map((month, index) => ({
+            month,
+            count: monthlyCounts[index]
+        }));
+
+        // Format data untuk wilayah segments
+        const areaData = Object.keys(wilayahCounts).map(wilayah => ({
+            wilayah,
+            count: wilayahCounts[wilayah]
+        }));
+
+        res.json({
+            stats: {
+                totalPelanggan,
+                disconnect,
+                totalAduan,
+                totalPaket
+            },
+            trendData,
+            areaData
+        });
+    } catch (err) {
+        console.error("Owner Dashboard Error:", err);
+        res.status(500).json({
+            message: "Terjadi kesalahan saat mengambil data dashboard owner",
+            error: err.message
+        });
+    }
+});
+
+// ============================================
 // GET /api/dashboard/admin/layanan
 // Data untuk Admin Manajemen Layanan
 // ============================================
@@ -1098,6 +1185,307 @@ router.put('/admin/layanan/eticketing/:id', verifyToken, async (req, res) => {
     } catch (err) {
         console.error("Update Ticket Error:", err);
         res.status(500).json({ message: "Terjadi kesalahan", error: err.message });
+    }
+});
+
+// ============================================
+// GET /api/dashboard/pelanggan/tagihan-aktif
+// Mendapatkan tagihan aktif dan melakukan auto-generate jika diperlukan
+// ============================================
+router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
+    try {
+        const pelangganId = req.user.id;
+        const { Pelanggan, Paket, Tagihan } = require('../models');
+        const { Op } = require('sequelize');
+
+        // 1. Ambil data pelanggan lengkap beserta paketnya
+        const pelanggan = await Pelanggan.findByPk(pelangganId, {
+            include: [{ model: Paket }]
+        });
+
+        if (!pelanggan) {
+            return res.status(404).json({ message: "Pelanggan tidak ditemukan." });
+        }
+
+        // Jika status pelanggan bukan aktif atau tidak punya paket, dia tidak punya tagihan bulanan berjalan
+        if (pelanggan.STATUS_PELANGGAN !== 'aktif' || !pelanggan.ID_PAKET) {
+            return res.json({ 
+                hasBill: false, 
+                message: "Anda tidak memiliki tagihan aktif saat ini karena status belum aktif atau belum berlangganan produk.",
+                pelanggan: {
+                    id_pelanggan: pelanggan.ID_PELANGGAN,
+                    kode_pelanggan: pelanggan.KODE_PELANGGAN,
+                    nama_pelanggan: pelanggan.NAMA_PELANGGAN,
+                    layanan: "-"
+                }
+            });
+        }
+
+        // 2. SISTEM AUTO GENERATE TAGIHAN PELANGGAN
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const todayYear = today.getFullYear();
+        const todayMonth = today.getMonth(); // 0-indexed
+
+        const aktivasi = new Date(pelanggan.TANGGAL_AKTIVASI);
+        const tanggalAktivasi = aktivasi.getDate();
+
+        // Cari tagihan dari 2 bulan lalu hingga 1 bulan ke depan
+        const targetCycles = [];
+        for (let offset = -2; offset <= 1; offset++) {
+            const cycleDate = new Date(todayYear, todayMonth + offset, 1);
+            targetCycles.push({
+                year: cycleDate.getFullYear(),
+                month: cycleDate.getMonth()
+            });
+        }
+
+        for (const cycle of targetCycles) {
+            const anniversaryDate = new Date(cycle.year, cycle.month, tanggalAktivasi);
+            
+            // Jatuh tempo adalah 3 hari sebelum anniversary
+            const jatuhTempo = new Date(anniversaryDate);
+            jatuhTempo.setDate(jatuhTempo.getDate() - 3);
+            jatuhTempo.setHours(0, 0, 0, 0);
+
+            // Pembayaran diperbolehkan mulai 10 hari sebelum jatuh tempo
+            // Ini juga waktu di mana sistem auto-generate tagihan baru!
+            const triggerDate = new Date(jatuhTempo);
+            triggerDate.setDate(triggerDate.getDate() - 10);
+            triggerDate.setHours(0, 0, 0, 0);
+
+            // Skip jika siklus ini terjadi sebelum atau sama dengan tanggal aktivasi asli
+            if (anniversaryDate <= aktivasi) {
+                continue;
+            }
+
+            // Jika tanggal hari ini sudah melewati atau sama dengan triggerDate (10 hari sebelum jatuh tempo),
+            // maka tagihan baru tersebut wajib di-generate secara otomatis oleh sistem.
+            if (today >= triggerDate) {
+                const billingMonth = anniversaryDate.getMonth() + 1; // 1-indexed
+                const billingYear = anniversaryDate.getFullYear();
+
+                const exists = await Tagihan.findOne({
+                    where: {
+                        ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                        BULAN_TAGIHAN: billingMonth,
+                        TAHUN_TAGIHAN: billingYear
+                    }
+                });
+
+                if (!exists) {
+                    const nomorTagihan = Math.floor(100000 + Math.random() * 900000);
+                    await Tagihan.create({
+                        ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                        JUMLAH_BAYAR: pelanggan.Paket ? pelanggan.Paket.HARGA_PAKET : 0,
+                        JATUH_TEMPO: jatuhTempo,
+                        STATUS_PEMBAYARAN: 'menunggu_verifikasi',
+                        BULAN_TAGIHAN: billingMonth,
+                        TAHUN_TAGIHAN: billingYear,
+                        NOMOR_TAGIHAN: nomorTagihan,
+                        ID_TRANSAKSI: `TAG-${pelanggan.ID_PELANGGAN}-${billingMonth}-${billingYear}`
+                    });
+                }
+            }
+        }
+
+        // 3. AMBIL TAGIHAN TERBARU UNTUK DITAMPILKAN
+        // Ambil semua tagihan diurutkan dari yang terbaru
+        const tagihanList = await Tagihan.findAll({
+            where: { ID_PELANGGAN: pelangganId },
+            order: [
+                ['TAHUN_TAGIHAN', 'DESC'],
+                ['BULAN_TAGIHAN', 'DESC']
+            ]
+        });
+
+        if (tagihanList.length === 0) {
+            return res.json({ 
+                hasBill: false, 
+                message: "Belum ada tagihan yang dibuat untuk akun Anda.",
+                pelanggan: {
+                    id_pelanggan: pelanggan.ID_PELANGGAN,
+                    kode_pelanggan: pelanggan.KODE_PELANGGAN,
+                    nama_pelanggan: pelanggan.NAMA_PELANGGAN,
+                    layanan: pelanggan.Paket ? pelanggan.Paket.NAMA_PAKET : "-"
+                }
+            });
+        }
+
+        // Prioritaskan mengambil tagihan yang belum terbayar (status 'menunggu_verifikasi')
+        let activeBill = tagihanList.find(t => t.STATUS_PEMBAYARAN !== 'berhasil');
+
+        // Jika semua tagihan sudah terbayar, ambil tagihan yang paling baru dibayar
+        if (!activeBill) {
+            activeBill = tagihanList[0];
+        }
+
+        res.json({
+            hasBill: true,
+            bill: {
+                id_tagihan: activeBill.ID_TAGIHAN,
+                nomor_tagihan: activeBill.NOMOR_TAGIHAN,
+                jumlah_bayar: activeBill.JUMLAH_BAYAR,
+                status_pembayaran: activeBill.STATUS_PEMBAYARAN, // 'berhasil' atau 'menunggu_verifikasi'
+                jatuh_tempo: activeBill.JATUH_TEMPO,
+                bulan_tagihan: activeBill.BULAN_TAGIHAN,
+                tahun_tagihan: activeBill.TAHUN_TAGIHAN,
+                id_transaksi: activeBill.ID_TRANSAKSI,
+                payment_url: activeBill.PAYMENT_URL
+            },
+            pelanggan: {
+                id_pelanggan: pelanggan.ID_PELANGGAN,
+                kode_pelanggan: pelanggan.KODE_PELANGGAN,
+                nama_pelanggan: pelanggan.NAMA_PELANGGAN,
+                layanan: pelanggan.Paket ? pelanggan.Paket.NAMA_PAKET : "-"
+            }
+        });
+
+    } catch (err) {
+        console.error("Fetch Tagihan Aktif Error:", err);
+        res.status(500).json({ message: "Terjadi kesalahan saat mengambil data tagihan.", error: err.message });
+    }
+});
+
+// ============================================
+// GET /api/dashboard/admin/tagihan
+// Mendapatkan rangkuman manajemen tagihan dan list pelanggan untuk Admin
+// ============================================
+router.get('/admin/tagihan', verifyToken, async (req, res) => {
+    try {
+        const { Pelanggan, Paket, Tagihan } = require('../models');
+        const { Op } = require('sequelize');
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        // 1. Ambil semua pelanggan aktif beserta Paket dan Tagihan mereka
+        const pelangganList = await Pelanggan.findAll({
+            where: { STATUS_PELANGGAN: 'aktif' },
+            include: [
+                { model: Paket },
+                { model: Tagihan }
+            ]
+        });
+
+        // 2. Hitung statistik yang diperlukan
+        // total tagihan = jumlah tagihan pelanggan yang sudah bisa dibayar
+        const totalTagihan = await Tagihan.count();
+
+        // tagihan pending = tagihan yang sudah memasuki waktu jatuh tempo dan belum dibayar
+        const tagihanPending = await Tagihan.count({
+            where: {
+                STATUS_PEMBAYARAN: { [Op.ne]: 'berhasil' },
+                JATUH_TEMPO: { [Op.lte]: today }
+            }
+        });
+
+        // tagihan terbayar = jumlah tagihan yang sudah sukses terbayar
+        const tagihanTerbayar = await Tagihan.count({
+            where: { STATUS_PEMBAYARAN: 'berhasil' }
+        });
+
+        // 3. Format data pelanggan untuk tabel
+        const formattedCustomers = pelangganList.map(p => {
+            const tagihans = p.Tagihans || [];
+            
+            // Cari tagihan yang belum dibayar (status_pembayaran != 'berhasil')
+            const unpaidBills = tagihans.filter(t => t.STATUS_PEMBAYARAN !== 'berhasil');
+            
+            // Tentukan status tampilan di UI
+            let displayStatus = 'AKTIF';
+            if (p.STATUS_LAYANAN === 'blokir') {
+                displayStatus = 'BLOCKIR';
+            } else {
+                // Cek apakah ada tagihan belum dibayar yang sudah lewat jatuh tempo
+                const hasOverdue = unpaidBills.some(t => new Date(t.JATUH_TEMPO) <= today);
+                if (hasOverdue) {
+                    displayStatus = 'JATUH TEMPO';
+                }
+            }
+
+            // Tentukan tanggal jatuh tempo terdekat atau tanggal jatuh tempo terakhir
+            let displayJatuhTempo = '-';
+            if (tagihans.length > 0) {
+                // Urutkan tagihan berdasarkan jatuh tempo terbaru
+                const sortedTagihans = [...tagihans].sort((a, b) => new Date(b.JATUH_TEMPO) - new Date(a.JATUH_TEMPO));
+                const latestBill = sortedTagihans[0];
+                if (latestBill && latestBill.JATUH_TEMPO) {
+                    displayJatuhTempo = new Date(latestBill.JATUH_TEMPO).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                }
+            }
+
+            return {
+                id_pelanggan: p.ID_PELANGGAN,
+                userId: p.KODE_PELANGGAN,
+                nama: p.NAMA_PELANGGAN,
+                jenisPaket: p.Paket ? p.Paket.NAMA_PAKET : '-',
+                status: displayStatus,
+                statusLayanan: p.STATUS_LAYANAN || 'aktif',
+                jatuhTempo: displayJatuhTempo
+            };
+        });
+
+        res.json({
+            stats: {
+                totalTagihan,
+                tagihanPending,
+                tagihanTerbayar
+            },
+            customers: formattedCustomers
+        });
+
+    } catch (err) {
+        console.error("Admin Fetch Tagihan Error:", err);
+        res.status(500).json({ message: "Terjadi kesalahan saat memuat data manajemen tagihan.", error: err.message });
+    }
+});
+
+// ============================================
+// PUT /api/dashboard/admin/tagihan/status/:id
+// Mengubah status layanan pelanggan (aktif / blokir)
+// ============================================
+router.put('/admin/tagihan/status/:id', verifyToken, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const { Pelanggan } = require('../models');
+
+        if (!['aktif', 'blokir'].includes(status)) {
+            return res.status(400).json({ message: "Status tidak valid. Harus 'aktif' atau 'blokir'." });
+        }
+
+        const pelanggan = await Pelanggan.findByPk(req.params.id);
+        if (!pelanggan) {
+            return res.status(404).json({ message: "Pelanggan tidak ditemukan." });
+        }
+
+        await pelanggan.update({ STATUS_LAYANAN: status });
+
+        // Tambah notifikasi untuk pelanggan tentang perubahan layanan
+        const { Notifikasi } = require('../models');
+        const judul = status === 'aktif' ? 'Layanan Diaktifkan Kembali' : 'Layanan Diblokir';
+        const pesan = status === 'aktif' 
+            ? 'Layanan internet Anda telah diaktifkan kembali. Terima kasih atas kerja samanya!'
+            : 'Layanan internet Anda sementara dinonaktifkan (diblokir) karena melewati masa jatuh tempo pembayaran. Harap segera lakukan pembayaran.';
+        
+        await Notifikasi.create({
+            ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+            JUDUL: judul,
+            DESKRIPSI_PESAN: pesan,
+            KATEGORI_NOTIFIKASI: status === 'aktif' ? 'pembayaran' : 'jatuh tempo',
+            TANGGAL_NOTIFIKASI: new Date()
+        });
+
+        res.json({ message: `Status layanan berhasil diubah menjadi ${status}.` });
+
+    } catch (err) {
+        console.error("Change Status Layanan Error:", err);
+        res.status(500).json({ message: "Terjadi kesalahan saat mengubah status layanan.", error: err.message });
     }
 });
 

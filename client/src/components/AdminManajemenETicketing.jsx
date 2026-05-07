@@ -27,7 +27,7 @@ const AdminManajemenETicketing = ({ user }) => {
 
     const adminMenu = [
         { label: 'Dashboard', path: '/admin-dashboard' },
-        { label: 'Manajemen Tagihan', path: '#' },
+        { label: 'Manajemen Tagihan', path: '/admin/manajemen-tagihan' },
         { label: 'Manajemen Pelanggan', path: '/admin/manajemen-pelanggan' },
         { label: 'Manajemen Layanan', path: '/admin/manajemen-layanan' },
         { label: 'Manajemen E-ticketing', path: '/admin/manajemen-eticketing' },

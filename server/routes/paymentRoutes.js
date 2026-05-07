@@ -87,6 +87,71 @@ router.post('/create-transaction', verifyToken, async (req, res) => {
 });
 
 // ============================================
+// POST /api/payment/pay-bill
+// Membuat transaksi Midtrans untuk Tagihan bulanan yang sudah ada
+// ============================================
+router.post('/pay-bill', verifyToken, async (req, res) => {
+    try {
+        const { id_tagihan } = req.body;
+
+        if (!id_tagihan) {
+            return res.status(400).json({ message: 'ID Tagihan wajib diisi.' });
+        }
+
+        const tagihan = await Tagihan.findByPk(id_tagihan);
+        if (!tagihan) {
+            return res.status(404).json({ message: 'Tagihan tidak ditemukan.' });
+        }
+
+        const pelanggan = await Pelanggan.findByPk(tagihan.ID_PELANGGAN);
+        if (!pelanggan) {
+            return res.status(404).json({ message: 'Pelanggan tidak ditemukan.' });
+        }
+
+        // Dapatkan data Paket untuk item details
+        const paket = await Paket.findByPk(pelanggan.ID_PAKET);
+
+        // Generate New Order ID for this payment attempt
+        const orderId = `TAG-${id_tagihan}-${Date.now()}`;
+
+        // Konfigurasi Parameter Midtrans
+        const parameter = {
+            transaction_details: {
+                order_id: orderId,
+                gross_amount: Math.round(tagihan.JUMLAH_BAYAR)
+            },
+            customer_details: {
+                first_name: pelanggan.NAMA_PELANGGAN || 'Pelanggan',
+                phone: pelanggan.NO_HP || '',
+            },
+            item_details: [{
+                id: tagihan.ID_TAGIHAN.toString(),
+                price: Math.round(tagihan.JUMLAH_BAYAR),
+                quantity: 1,
+                name: paket ? `Paket ${paket.NAMA_PAKET}` : 'Tagihan Layanan Internet'
+            }]
+        };
+
+        const transaction = await snap.createTransaction(parameter);
+
+        // Update Tagihan dengan Order ID baru dan URL pembayaran baru
+        await tagihan.update({
+            ID_TRANSAKSI: orderId,
+            PAYMENT_URL: transaction.redirect_url
+        });
+
+        res.json({
+            token: transaction.token,
+            redirect_url: transaction.redirect_url
+        });
+
+    } catch (error) {
+        console.error('Error creating bill payment transaction:', error);
+        res.status(500).json({ message: 'Gagal membuat transaksi tagihan', error: error.message });
+    }
+});
+
+// ============================================
 // POST /api/payment/success
 // Endpoint untuk callback frontend saat bayar lunas
 // ============================================

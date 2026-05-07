@@ -37,6 +37,22 @@ async function testConnection() {
         // Sync model
         await sequelize.sync({ alter: false });
         console.log('✅ Sinkronisasi Model Sequelize Berhasil!');
+
+        // Seed default owner account if it doesn't exist
+        const { Pegawai } = require('./models');
+        const [owner, created] = await Pegawai.findOrCreate({
+            where: { USERNAME: 'owner' },
+            defaults: {
+                NAMA: 'Alya Owner',
+                USERNAME: 'owner',
+                PASSWORD: 'owner', // plaintext is accepted by authRoutes
+                ROLE: 'owner',
+                WILAYAH: 'Batam Center'
+            }
+        });
+        if (created) {
+            console.log('🌱 Seeded default owner account: username "owner", password "owner"');
+        }
     } catch (err) {
         console.error('❌ Koneksi Database Gagal:', err.message);
     }
@@ -56,7 +72,6 @@ app.listen(PORT, () => {
 
     // ============================================
     // PUSH NOTIFICATION: Cek Jatuh Tempo Tagihan (Khusus Jatuh Tempo)
-    // Jatuh tempo dihitung sebulan setelah tanggal aktivasi minus 3 hari.
     // ============================================
     const checkJatuhTempo = async () => {
         try {
@@ -129,7 +144,7 @@ app.listen(PORT, () => {
                         });
 
                         if (alreadySent) {
-                            console.log(`   ⏭️  Notifikasi jatuh tempo hari ini untuk ${pelanggan.NAMA_PELANGGAN} sudah dikirim. Skip.`);
+                            console.log(`   ⏭️  Notifikasi jatuh tempo hari ini untuk ${pelanggan.NAMA_PELANGGAN} sudah dikirim.`);
                             continue;
                         }
 
