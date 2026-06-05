@@ -5,33 +5,23 @@ import DashboardLayout from './DashboardLayout';
 
 const OwnerDashboard = () => {
     const navigate = useNavigate();
-    const [view, setView] = useState('dashboard'); // 'dashboard' atau 'paket'
     const [stats, setStats] = useState({
         totalPelanggan: 0,
         disconnect: 0,
         totalAduan: 0,
-        totalPaket: 0
+        totalIncome: 0
     });
     const [trendData, setTrendData] = useState([]);
     const [areaData, setAreaData] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    // State untuk CRUD Paket
-    const [paketList, setPaketList] = useState([]);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editId, setEditId] = useState(null);
-    const [formData, setFormData] = useState({
-        NAMA_PAKET: '',
-        HARGA_PAKET: ''
-    });
-    const [paketLoading, setPaketLoading] = useState(false);
 
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user'));
 
     const ownerMenu = [
         { label: 'Dashboard', path: '/owner-dashboard' },
-        { label: 'Log Activity', path: '#' }
+        { label: 'Log Activity', path: '/owner-log-activity' },
+        { label: 'Laporan', path: '/owner/laporan' }
     ];
 
     // Fetch data dashboard
@@ -50,19 +40,6 @@ const OwnerDashboard = () => {
             navigate('/staff-login');
         } finally {
             setLoading(false);
-        }
-    };
-
-    // Fetch daftar paket untuk CRUD
-    const fetchPaketList = async () => {
-        try {
-            setPaketLoading(true);
-            const res = await axios.get('http://localhost:5000/api/paket');
-            setPaketList(res.data);
-        } catch (err) {
-            console.error('Gagal memuat daftar paket:', err);
-        } finally {
-            setPaketLoading(false);
         }
     };
 
@@ -91,112 +68,6 @@ const OwnerDashboard = () => {
             }
         };
     }, [token]);
-
-    useEffect(() => {
-        if (view === 'paket') {
-            fetchPaketList();
-        }
-    }, [view]);
-
-    // Download Data Aduan sebagai CSV
-    const handleDownloadAduan = async () => {
-        try {
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/aduan', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const rawAduan = res.data.data || [];
-
-            if (rawAduan.length === 0) {
-                alert('Tidak ada data aduan untuk diunduh.');
-                return;
-            }
-
-            // Generate CSV string
-            const headers = ["No Aduan", "ID Pelanggan", "Nama Pelanggan", "Subjek/Kategori", "Deskripsi Masalah", "Tanggal", "Status"];
-            const rows = rawAduan.map(item => [
-                item.noAduan,
-                item.userId,
-                `"${item.nama.replace(/"/g, '""')}"`,
-                `"${item.subjek.replace(/"/g, '""')}"`,
-                `"${item.deskripsi.replace(/"/g, '""')}"`,
-                item.tanggal,
-                item.status
-            ]);
-
-            const csvContent = "data:text/csv;charset=utf-8," 
-                + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `laporan_aduan_pelanggan_${new Date().toISOString().slice(0, 10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } catch (err) {
-            console.error('Gagal mengunduh aduan:', err);
-            alert('Gagal mengunduh data aduan.');
-        }
-    };
-
-    // CRUD Paket Handlers
-    const handleInputChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
-
-    const handleAddOrUpdatePaket = async (e) => {
-        e.preventDefault();
-        if (!formData.NAMA_PAKET || !formData.HARGA_PAKET) {
-            alert('Harap isi semua kolom!');
-            return;
-        }
-
-        try {
-            if (isEditing) {
-                // Update Paket
-                await axios.put(`http://localhost:5000/api/paket/${editId}`, formData, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert('Paket berhasil diperbarui!');
-            } else {
-                // Tambah Paket Baru
-                await axios.post('http://localhost:5000/api/paket', formData, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert('Paket baru berhasil ditambahkan!');
-            }
-            setFormData({ NAMA_PAKET: '', HARGA_PAKET: '' });
-            setIsEditing(false);
-            setEditId(null);
-            fetchPaketList();
-            fetchDashboardData(); // Update total paket di dashboard
-        } catch (err) {
-            alert('Gagal menyimpan paket: ' + (err.response?.data?.message || err.message));
-        }
-    };
-
-    const handleEditClick = (p) => {
-        setIsEditing(true);
-        setEditId(p.ID_PAKET);
-        setFormData({
-            NAMA_PAKET: p.NAMA_PAKET,
-            HARGA_PAKET: p.HARGA_PAKET
-        });
-    };
-
-    const handleDeletePaket = async (id) => {
-        if (!window.confirm('Apakah Anda yakin ingin menghapus paket ini?')) return;
-        try {
-            await axios.delete(`http://localhost:5000/api/paket/${id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert('Paket berhasil dihapus!');
-            fetchPaketList();
-            fetchDashboardData();
-        } catch (err) {
-            alert('Gagal menghapus paket: ' + (err.response?.data?.message || err.message));
-        }
-    };
 
     // Download Chart SVG/PNG Helper
     const downloadChart = (svgId, format, filename) => {
@@ -264,338 +135,228 @@ const OwnerDashboard = () => {
             <div style={styles.pageContainer}>
                 {/* Custom Header (Matching Admin/Teknisi) */}
                 <div style={styles.customHeader}>
-                    <button onClick={() => setView('dashboard')} style={styles.backButton}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </button>
-                    <h2 style={styles.pageTitle}>{view === 'dashboard' ? 'Dashboard' : 'Manajemen Paket Layanan'}</h2>
+                    <h2 style={styles.pageTitle}>Dashboard</h2>
                 </div>
 
                 {/* Content Area with Grey background */}
                 <div style={styles.contentArea}>
-
-                    {/* View Switcher: Dashboard View */}
-                    {view === 'dashboard' && (
-                        <div style={styles.dashboardViewWrapper}>
+                    <div style={styles.dashboardViewWrapper}>
+                        
+                        {/* Cards Container (Grid-aligned exactly with Admin) */}
+                        <div style={styles.statsContainer}>
                             
-                            {/* Cards Container (Grid-aligned exactly with Admin) */}
-                            <div style={styles.statsContainer}>
-                                
-                                {/* Card 1: Total Pelanggan */}
-                                <div style={{ ...styles.statBox, backgroundColor: '#e2e8fa' }}>
-                                    <div style={styles.statTitle}>Total Pelanggan</div>
-                                    <div style={styles.statBody}>
-                                        <svg width="36" height="36" viewBox="0 0 24 24" fill="#4f46e5" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                                        </svg>
-                                        <div style={styles.statValueContainer}>
-                                            <span style={styles.statNumber}>{stats.totalPelanggan}</span>
-                                            <span style={styles.statSubtitle}>Pelanggan</span>
-                                        </div>
+                            {/* Card 1: Total Pelanggan */}
+                            <div style={{ ...styles.statBox, backgroundColor: '#e2e8fa' }}>
+                                <div style={styles.statTitle}>Total Pelanggan</div>
+                                <div style={styles.statBody}>
+                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="#000" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-.32 0-.63.05-.91.14.57.81.91 1.79.91 2.86s-.34 2.04-.91 2.86c.28.09.59.14.91.14zm4 6.11V19h-3v-2c0-.98-.62-1.95-1.76-2.67 1.49.52 2.65 1.51 2.65 2.78z" opacity="0.6" />
+                                    </svg>
+                                    <div style={styles.statValueContainer}>
+                                        <span style={styles.statNumber}>{stats.totalPelanggan}</span>
+                                        <span style={styles.statSubtitle}>Pelanggan</span>
                                     </div>
                                 </div>
-
-                                {/* Card 2: Disconnect */}
-                                <div style={{ ...styles.statBox, backgroundColor: '#f0fdf4' }}>
-                                    <div style={styles.statTitle}>Disconnect</div>
-                                    <div style={styles.statBody}>
-                                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-                                        </svg>
-                                        <div style={styles.statValueContainer}>
-                                            <span style={styles.statNumber}>{stats.disconnect}</span>
-                                            <span style={styles.statSubtitle}>Pelanggan</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Card 3: Total Aduan */}
-                                <div 
-                                    style={{ ...styles.statBox, backgroundColor: '#f5f3ff', cursor: 'pointer' }}
-                                    onClick={handleDownloadAduan}
-                                    title="Klik untuk Unduh Data Aduan (CSV)"
-                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                >
-                                    <div style={styles.statTitle}>Total Aduan 📥</div>
-                                    <div style={styles.statBody}>
-                                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                            <polyline points="14 2 14 8 20 8" />
-                                            <line x1="16" y1="13" x2="8" y2="13" />
-                                            <line x1="16" y1="17" x2="8" y2="17" />
-                                            <polyline points="10 9 9 9 8 9" />
-                                        </svg>
-                                        <div style={styles.statValueContainer}>
-                                            <span style={styles.statNumber}>{stats.totalAduan}</span>
-                                            <span style={styles.statSubtitle}>Aduan</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Card 4: Total Paket Layanan */}
-                                <div 
-                                    style={{ ...styles.statBox, backgroundColor: '#fffbeb', cursor: 'pointer' }}
-                                    onClick={() => setView('paket')}
-                                    title="Klik untuk Kelola Paket Layanan (CRUD)"
-                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                >
-                                    <div style={styles.statTitle}>Total Paket Layanan ⚙️</div>
-                                    <div style={styles.statBody}>
-                                        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                            <line x1="12" y1="22.08" x2="12" y2="12" />
-                                        </svg>
-                                        <div style={styles.statValueContainer}>
-                                            <span style={styles.statNumber}>{stats.totalPaket}</span>
-                                            <span style={styles.statSubtitle}>Paket</span>
-                                        </div>
-                                    </div>
-                                </div>
-
                             </div>
 
-                            {/* Charts Grid */}
-                            <div style={styles.chartsGrid}>
-                                
-                                {/* Trend Chart Card */}
-                                <div style={styles.chartCard}>
-                                    <div style={styles.chartHeaderRow}>
-                                        <h4 style={styles.chartTitle}>Subscribed Customers Trend</h4>
-                                        <div style={styles.downloadButtons}>
-                                            <button onClick={() => downloadChart('trendSVG', 'png', 'trend_pelanggan')} style={styles.chartDlBtn}>PNG</button>
-                                            <button onClick={() => downloadChart('trendSVG', 'svg', 'trend_pelanggan')} style={styles.chartDlBtn}>SVG</button>
-                                        </div>
+                            {/* Card 2: Disconnect */}
+                            <div style={{ ...styles.statBox, backgroundColor: '#fef2f2' }}>
+                                <div style={styles.statTitle}>Disconnect</div>
+                                <div style={styles.statBody}>
+                                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                                    </svg>
+                                    <div style={styles.statValueContainer}>
+                                        <span style={styles.statNumber}>{stats.disconnect}</span>
+                                        <span style={styles.statSubtitle}>Pelanggan</span>
                                     </div>
+                                </div>
+                            </div>
 
-                                    <div style={styles.chartContent}>
-                                        {trendData.length > 0 ? (
-                                            <svg id="trendSVG" width="100%" height="100%" viewBox="0 0 540 260" style={{ maxHeight: '250px' }}>
-                                                {/* Grid Lines */}
-                                                <line x1="40" y1="30" x2="520" y2="30" stroke="#f1f5f9" strokeWidth="1" />
-                                                <line x1="40" y1="75" x2="520" y2="75" stroke="#f1f5f9" strokeWidth="1" />
-                                                <line x1="40" y1="120" x2="520" y2="120" stroke="#f1f5f9" strokeWidth="1" />
-                                                <line x1="40" y1="165" x2="520" y2="165" stroke="#f1f5f9" strokeWidth="1" />
-                                                <line x1="40" y1="210" x2="520" y2="210" stroke="#cbd5e1" strokeWidth="1.5" />
+                            {/* Card 3: Total Aduan */}
+                            <div style={{ ...styles.statBox, backgroundColor: '#f5f3ff' }}>
+                                <div style={styles.statTitle}>Total Aduan Bulan Ini</div>
+                                <div style={styles.statBody}>
+                                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                        <polyline points="10 9 9 9 8 9" />
+                                    </svg>
+                                    <div style={styles.statValueContainer}>
+                                        <span style={styles.statNumber}>{stats.totalAduan}</span>
+                                        <span style={styles.statSubtitle}>Aduan</span>
+                                    </div>
+                                </div>
+                            </div>
 
-                                                {/* Y Axis Labels */}
-                                                <text x="15" y="35" fontSize="11" fill="#64748b" textAnchor="middle">70</text>
-                                                <text x="15" y="80" fontSize="11" fill="#64748b" textAnchor="middle">50</text>
-                                                <text x="15" y="125" fontSize="11" fill="#64748b" textAnchor="middle">30</text>
-                                                <text x="15" y="170" fontSize="11" fill="#64748b" textAnchor="middle">10</text>
-                                                <text x="15" y="215" fontSize="11" fill="#64748b" textAnchor="middle">0</text>
+                            {/* Card 4: Total Income Bulan Ini */}
+                            <div style={{ ...styles.statBox, backgroundColor: '#dcfce7' }}>
+                                <div style={styles.statTitle}>Total Income Bulan Ini</div>
+                                <div style={styles.statBody}>
+                                    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="12" y1="1" x2="12" y2="23" />
+                                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                    </svg>
+                                    <div style={styles.statValueContainer}>
+                                        <span style={styles.statNumber}>Rp {Number(stats.totalIncome || 0).toLocaleString('id-ID')}</span>
+                                        <span style={styles.statSubtitle}>Pendapatan</span>
+                                    </div>
+                                </div>
+                            </div>
 
+                        </div>
+
+                        {/* Charts Grid */}
+                        <div style={styles.chartsGrid}>
+                            
+                            {/* Trend Chart Card */}
+                            <div style={styles.chartCard}>
+                                <div style={styles.chartHeaderRow}>
+                                    <h4 style={styles.chartTitle}>Subscribed Customers Trend</h4>
+                                    <div style={styles.downloadButtons}>
+                                        <button onClick={() => downloadChart('trendSVG', 'png', 'trend_pelanggan')} style={styles.chartDlBtn}>PNG</button>
+                                        <button onClick={() => downloadChart('trendSVG', 'svg', 'trend_pelanggan')} style={styles.chartDlBtn}>SVG</button>
+                                    </div>
+                                </div>
+
+                                <div style={styles.chartContent}>
+                                    {trendData.length > 0 ? (
+                                        <svg id="trendSVG" width="100%" height="100%" viewBox="0 0 540 260" style={{ maxHeight: '250px' }}>
+                                            {/* Grid Lines */}
+                                            <line x1="40" y1="30" x2="520" y2="30" stroke="#f1f5f9" strokeWidth="1" />
+                                            <line x1="40" y1="75" x2="520" y2="75" stroke="#f1f5f9" strokeWidth="1" />
+                                            <line x1="40" y1="120" x2="520" y2="120" stroke="#f1f5f9" strokeWidth="1" />
+                                            <line x1="40" y1="165" x2="520" y2="165" stroke="#f1f5f9" strokeWidth="1" />
+                                            <line x1="40" y1="210" x2="520" y2="210" stroke="#cbd5e1" strokeWidth="1.5" />
+
+                                            {/* Y Axis Labels */}
+                                            <text x="15" y="35" fontSize="11" fill="#64748b" textAnchor="middle">70</text>
+                                            <text x="15" y="80" fontSize="11" fill="#64748b" textAnchor="middle">50</text>
+                                            <text x="15" y="125" fontSize="11" fill="#64748b" textAnchor="middle">30</text>
+                                            <text x="15" y="170" fontSize="11" fill="#64748b" textAnchor="middle">10</text>
+                                            <text x="15" y="215" fontSize="11" fill="#64748b" textAnchor="middle">0</text>
+
+                                            {(() => {
+                                                const points = trendData.map((d, i) => {
+                                                    const x = 40 + i * 43.6;
+                                                    const y = 210 - (d.count / 70) * 180;
+                                                    return { x, y };
+                                                });
+
+                                                const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+
+                                                return (
+                                                    <>
+                                                        <polyline points={polylinePoints} fill="none" stroke="#5b4fcf" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                                        {points.map((p, i) => (
+                                                            <g key={i}>
+                                                                <circle cx={p.x} cy={p.y} r="5.5" fill="#5b4fcf" stroke="#ffffff" strokeWidth="2.5" />
+                                                                <title>{trendData[i].month}: {trendData[i].count} Pelanggan</title>
+                                                            </g>
+                                                        ))}
+                                                    </>
+                                                );
+                                            })()}
+
+                                            {/* X Axis Labels */}
+                                            {trendData.map((d, i) => (
+                                                <text key={i} x={40 + i * 43.6} y="235" fontSize="11.5" fontWeight="600" fill="#64748b" textAnchor="middle">
+                                                    {d.month}
+                                                </text>
+                                            ))}
+                                        </svg>
+                                    ) : (
+                                        <p style={styles.noData}>No trend data available</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Area Segment Distribution Card */}
+                            <div style={styles.chartCard}>
+                                <div style={styles.chartHeaderRow}>
+                                    <h4 style={styles.chartTitle}>Customer Distribution by Area</h4>
+                                    <div style={styles.downloadButtons}>
+                                        <button onClick={() => downloadChart('areaSVG', 'png', 'distribusi_wilayah')} style={styles.chartDlBtn}>PNG</button>
+                                        <button onClick={() => downloadChart('areaSVG', 'svg', 'distribusi_wilayah')} style={styles.chartDlBtn}>SVG</button>
+                                    </div>
+                                </div>
+
+                                <div style={styles.chartContent}>
+                                    {areaData.length > 0 ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+                                            <svg id="areaSVG" width="220" height="220" viewBox="0 0 200 200">
                                                 {(() => {
-                                                    const points = trendData.map((d, i) => {
-                                                        const x = 40 + i * 43.6;
-                                                        const y = 210 - (d.count / 70) * 180;
-                                                        return { x, y, ...d };
+                                                    const total = areaData.reduce((sum, d) => sum + d.count, 0);
+                                                    let accumulatedAngle = 0;
+                                                    const colors = ['#5b4fcf', '#38bdf8', '#fb923c', '#f43f5e', '#10b981', '#a855f7'];
+
+                                                    return areaData.map((d, i) => {
+                                                        const percentage = d.count / total;
+                                                        const angle = percentage * 360;
+
+                                                        const r = 80;
+                                                        const cx = 100;
+                                                        const cy = 100;
+
+                                                        const x1 = cx + r * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
+                                                        const y1 = cy + r * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
+
+                                                        accumulatedAngle += angle;
+
+                                                        const x2 = cx + r * Math.cos((accumulatedAngle - 90) * Math.PI / 180);
+                                                        const y2 = cy + r * Math.sin((accumulatedAngle - 90) * Math.PI / 180);
+
+                                                        const largeArcFlag = angle > 180 ? 1 : 0;
+
+                                                        const pathData = `
+                                                            M ${cx} ${cy}
+                                                            L ${x1} ${y1}
+                                                            A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2}
+                                                            Z
+                                                        `;
+
+                                                        return (
+                                                            <path
+                                                                key={i}
+                                                                d={pathData}
+                                                                fill={colors[i % colors.length]}
+                                                                stroke="#ffffff"
+                                                                strokeWidth="2"
+                                                            >
+                                                                <title>{d.wilayah}: {d.count} Pelanggan ({Math.round(percentage * 100)}%)</title>
+                                                            </path>
+                                                        );
                                                     });
-
-                                                    const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
-
-                                                    return (
-                                                        <>
-                                                            <polyline points={polylinePoints} fill="none" stroke="#5b4fcf" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                                                            {points.map((p, i) => (
-                                                                <g key={i}>
-                                                                    <circle cx={p.x} cy={p.y} r="5.5" fill="#5b4fcf" stroke="#ffffff" strokeWidth="2.5" />
-                                                                    <text x={p.x} y={p.y - 10} fontSize="11" fontWeight="700" fill="#5b4fcf" textAnchor="middle">{p.count}</text>
-                                                                    <text x={p.x} y="235" fontSize="10.5" fontWeight="600" fill="#475569" textAnchor="middle">{p.month}</text>
-                                                                </g>
-                                                            ))}
-                                                        </>
-                                                    );
                                                 })()}
+                                                <circle cx="100" cy="100" r="45" fill="#ffffff" />
                                             </svg>
-                                        ) : (
-                                            <p style={styles.noData}>Tidak ada data tren untuk ditampilkan</p>
-                                        )}
-                                    </div>
-                                </div>
 
-                                {/* Pie Chart Card */}
-                                <div style={styles.chartCard}>
-                                    <div style={styles.chartHeaderRow}>
-                                        <h4 style={styles.chartTitle}>Customer Area Segments</h4>
-                                        <div style={styles.downloadButtons}>
-                                            <button onClick={() => downloadChart('areaSVG', 'png', 'segmen_wilayah')} style={styles.chartDlBtn}>PNG</button>
-                                            <button onClick={() => downloadChart('areaSVG', 'svg', 'segmen_wilayah')} style={styles.chartDlBtn}>SVG</button>
+                                            <div style={styles.legendGrid}>
+                                                {areaData.map((d, i) => {
+                                                    const colors = ['#5b4fcf', '#38bdf8', '#fb923c', '#f43f5e', '#10b981', '#a855f7'];
+                                                    const total = areaData.reduce((sum, item) => sum + item.count, 0);
+                                                    const pct = total > 0 ? Math.round((d.count / total) * 100) : 0;
+                                                    return (
+                                                        <div key={i} style={styles.legendItem} title={`${d.wilayah}: ${d.count} Pelanggan`}>
+                                                            <span style={{ ...styles.legendDot, backgroundColor: colors[i % colors.length] }}></span>
+                                                            <span style={styles.legendText}>{d.wilayah} ({pct}%)</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    <div style={{ ...styles.chartContent, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                        {areaData.length > 0 ? (
-                                            <>
-                                                <svg id="areaSVG" width="220" height="220" viewBox="0 0 220 220" style={{ maxHeight: '200px' }}>
-                                                    {(() => {
-                                                        const total = areaData.reduce((sum, d) => sum + d.count, 0);
-                                                        let cumulativePercent = 0;
-
-                                                        const getCoordinatesForPercent = (percent) => {
-                                                            const x = Math.cos(2 * Math.PI * percent - Math.PI / 2);
-                                                            const y = Math.sin(2 * Math.PI * percent - Math.PI / 2);
-                                                            return [x, y];
-                                                        };
-
-                                                        const colors = ['#6366f1', '#f87171', '#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#f472b6', '#cbd5e1'];
-
-                                                        return areaData.map((d, index) => {
-                                                            const percent = d.count / total;
-                                                            const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
-                                                            cumulativePercent += percent;
-                                                            const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
-                                                            
-                                                            const largeArcFlag = percent > 0.5 ? 1 : 0;
-                                                            const r = 90;
-                                                            const cx = 110;
-                                                            const cy = 110;
-
-                                                            const x1 = cx + startX * r;
-                                                            const y1 = cy + startY * r;
-                                                            const x2 = cx + endX * r;
-                                                            const y2 = cy + endY * r;
-
-                                                            if (percent >= 0.999) {
-                                                                return <circle key={index} cx={cx} cy={cy} r={r} fill={colors[index % colors.length]} />;
-                                                            }
-
-                                                            const pathData = [
-                                                                `M ${cx} ${cy}`,
-                                                                `L ${x1} ${y1}`,
-                                                                `A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
-                                                                `Z`
-                                                            ].join(' ');
-
-                                                            return (
-                                                                <path 
-                                                                    key={index} 
-                                                                    d={pathData} 
-                                                                    fill={colors[index % colors.length]} 
-                                                                    stroke="#ffffff" 
-                                                                    strokeWidth="1.5"
-                                                                />
-                                                            );
-                                                        });
-                                                    })()}
-                                                </svg>
-
-                                                <div style={styles.legendGrid}>
-                                                    {(() => {
-                                                        const colors = ['#6366f1', '#f87171', '#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#f472b6', '#cbd5e1'];
-                                                        return areaData.map((d, index) => (
-                                                            <div key={index} style={styles.legendItem}>
-                                                                <span style={{ ...styles.legendDot, backgroundColor: colors[index % colors.length] }}></span>
-                                                                <span style={styles.legendText}>{d.wilayah} ({d.count})</span>
-                                                            </div>
-                                                        ));
-                                                    })()}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <p style={styles.noData}>Tidak ada data sebaran wilayah</p>
-                                        )}
-                                    </div>
+                                    ) : (
+                                        <p style={styles.noData}>No distribution data available</p>
+                                    )}
                                 </div>
                             </div>
+
                         </div>
-                    )}
-
-                    {/* View Switcher: Paket CRUD View */}
-                    {view === 'paket' && (
-                        <div style={styles.crudWrapper}>
-                            
-                            {/* Form Card */}
-                            <div style={styles.crudFormCard}>
-                                <h4 style={styles.formCardTitle}>{isEditing ? '✏️ Edit Paket Layanan' : '➕ Tambah Paket Layanan Baru'}</h4>
-                                <form onSubmit={handleAddOrUpdatePaket} style={styles.inlineForm}>
-                                    <div style={styles.formGroup}>
-                                        <label style={styles.inputLabel}>Nama Paket</label>
-                                        <input 
-                                            type="text" 
-                                            name="NAMA_PAKET" 
-                                            value={formData.NAMA_PAKET} 
-                                            onChange={handleInputChange} 
-                                            placeholder="Contoh: Paket Premium Gold" 
-                                            style={styles.formInput} 
-                                        />
-                                    </div>
-
-                                    <div style={styles.formGroup}>
-                                        <label style={styles.inputLabel}>Harga Bulanan (IDR)</label>
-                                        <input 
-                                            type="number" 
-                                            name="HARGA_PAKET" 
-                                            value={formData.HARGA_PAKET} 
-                                            onChange={handleInputChange} 
-                                            placeholder="Contoh: 150000" 
-                                            style={styles.formInput} 
-                                        />
-                                    </div>
-
-                                    <div style={styles.formButtons}>
-                                        <button type="submit" style={styles.saveBtn}>
-                                            {isEditing ? 'Simpan Perubahan' : 'Tambahkan Paket'}
-                                        </button>
-                                        {isEditing && (
-                                            <button 
-                                                type="button" 
-                                                onClick={() => {
-                                                    setIsEditing(false);
-                                                    setEditId(null);
-                                                    setFormData({ NAMA_PAKET: '', HARGA_PAKET: '' });
-                                                }} 
-                                                style={styles.cancelBtn}
-                                            >
-                                                Batal
-                                            </button>
-                                        )}
-                                    </div>
-                                </form>
-                            </div>
-
-                            {/* Table List Card */}
-                            <div style={styles.crudTableCard}>
-                                <h4 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#1e293b' }}>Daftar Paket Terdaftar</h4>
-                                {paketLoading ? (
-                                    <p style={{ color: '#64748b', fontSize: '14px' }}>Memuat paket...</p>
-                                ) : paketList.length > 0 ? (
-                                    <div style={{ overflowX: 'auto' }}>
-                                        <table style={styles.table}>
-                                            <thead>
-                                                <tr>
-                                                    <th style={styles.th}>ID</th>
-                                                    <th style={styles.th}>Nama Paket</th>
-                                                    <th style={styles.th}>Harga Layanan</th>
-                                                    <th style={styles.th}>Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {paketList.map(p => (
-                                                    <tr key={p.ID_PAKET} style={styles.tr}>
-                                                        <td style={styles.td}>{p.ID_PAKET}</td>
-                                                        <td style={{ ...styles.td, fontWeight: 'bold', color: '#1e293b' }}>{p.NAMA_PAKET}</td>
-                                                        <td style={styles.td}>Rp {Number(p.HARGA_PAKET).toLocaleString('id-ID')} / bulan</td>
-                                                        <td style={styles.td}>
-                                                            <button onClick={() => handleEditClick(p)} style={styles.editBtn}>Edit</button>
-                                                            <button onClick={() => handleDeletePaket(p.ID_PAKET)} style={styles.deleteBtn}>Hapus</button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <p style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>Belum ada paket layanan terdaftar di database.</p>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
+                    </div>
                 </div>
             </div>
         </DashboardLayout>
@@ -619,19 +380,6 @@ const styles = {
         gap: '14px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
         zIndex: 1,
-    },
-    backButton: {
-        width: '36px',
-        height: '36px',
-        borderRadius: '50%',
-        backgroundColor: '#5b6abf',
-        border: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        boxShadow: '0 2px 6px rgba(91,106,191,0.3)',
-        padding: 0,
     },
     pageTitle: {
         fontSize: '20px',
@@ -663,7 +411,6 @@ const styles = {
         justifyContent: 'center',
         textAlign: 'center',
         boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-        transition: 'transform 0.2s',
     },
     statTitle: {
         fontSize: '15px',
@@ -682,7 +429,7 @@ const styles = {
         alignItems: 'flex-start',
     },
     statNumber: {
-        fontSize: '28px',
+        fontSize: '22px', // Reduced slightly for long currency strings
         fontWeight: '700',
         color: '#1a1a2e',
         lineHeight: '1.1',
@@ -777,127 +524,6 @@ const styles = {
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap'
-    },
-
-    // Package CRUD Section Spacing
-    crudWrapper: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '24px'
-    },
-    crudFormCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        padding: '24px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-    },
-    formCardTitle: {
-        margin: '0 0 18px 0',
-        fontSize: '15px',
-        fontWeight: '800',
-        color: '#1e293b'
-    },
-    inlineForm: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'flex-end',
-        gap: '20px'
-    },
-    formGroup: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-        flex: '1',
-        minWidth: '220px'
-    },
-    inputLabel: {
-        fontSize: '12px',
-        fontWeight: '700',
-        color: '#475569'
-    },
-    formInput: {
-        padding: '11px 14px',
-        borderRadius: '8px',
-        border: '1px solid #cbd5e1',
-        fontSize: '14px',
-        color: '#1e293b',
-        outline: 'none',
-        transition: 'all 0.15s'
-    },
-    formButtons: {
-        display: 'flex',
-        gap: '10px',
-        minWidth: '220px'
-    },
-    saveBtn: {
-        flex: 1,
-        padding: '11px 20px',
-        backgroundColor: '#5b4fcf',
-        color: '#ffffff',
-        fontWeight: '700',
-        fontSize: '14px',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer',
-        boxShadow: '0 4px 8px rgba(91, 79, 207, 0.2)'
-    },
-    cancelBtn: {
-        padding: '11px 16px',
-        backgroundColor: '#f1f5f9',
-        color: '#475569',
-        fontWeight: '600',
-        fontSize: '14px',
-        border: 'none',
-        borderRadius: '8px',
-        cursor: 'pointer'
-    },
-    crudTableCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        padding: '24px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-    },
-    table: {
-        width: '100%',
-        borderCollapse: 'collapse',
-        textAlign: 'left',
-        fontSize: '14px'
-    },
-    th: {
-        padding: '12px 16px',
-        backgroundColor: '#f8fafc',
-        borderBottom: '2px solid #e2e8f0',
-        color: '#475569',
-        fontWeight: '700'
-    },
-    tr: {
-        borderBottom: '1px solid #f1f5f9',
-        transition: 'background-color 0.15s'
-    },
-    td: {
-        padding: '12px 16px',
-        color: '#475569'
-    },
-    editBtn: {
-        padding: '6px 12px',
-        marginRight: '8px',
-        backgroundColor: '#eff6ff',
-        color: '#2563eb',
-        fontWeight: '700',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '12.5px'
-    },
-    deleteBtn: {
-        padding: '6px 12px',
-        backgroundColor: '#fef2f2',
-        color: '#dc2626',
-        fontWeight: '700',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        fontSize: '12.5px'
     },
 
     // Spinner Loading

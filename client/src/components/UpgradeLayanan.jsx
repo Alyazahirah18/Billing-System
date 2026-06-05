@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const UpgradeLayanan = ({ user }) => {
     const [layananAktif, setLayananAktif] = useState('Memuat...');
+    const [idPaketAktif, setIdPaketAktif] = useState(null);
     const [paketList, setPaketList] = useState([]);
     const [selectedPaket, setSelectedPaket] = useState('');
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -18,8 +21,9 @@ const UpgradeLayanan = ({ user }) => {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 
-                // Summary mengembalikan { jenis_layanan: '...' }
+                // Summary mengembalikan { jenis_layanan: '...', id_paket: ... }
                 setLayananAktif(summaryRes.data.jenis_layanan || 'Belum ada layanan aktif');
+                setIdPaketAktif(summaryRes.data.id_paket || null);
 
                 // Mengambil daftar produk/paket layanan
                 const paketRes = await axios.get('http://localhost:5000/api/paket', {
@@ -43,6 +47,12 @@ const UpgradeLayanan = ({ user }) => {
             return;
         }
 
+        // Validasi jika memilih paket yang sama dengan paket aktif saat ini
+        if (idPaketAktif && parseInt(selectedPaket) === parseInt(idPaketAktif)) {
+            alert('Anda tidak dapat memilih paket layanan yang sama dengan paket yang sedang aktif saat ini.');
+            return;
+        }
+
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -51,12 +61,18 @@ const UpgradeLayanan = ({ user }) => {
             });
             
             alert(res.data.message || 'Pengajuan upgrade layanan berhasil dikirim!');
-            setSelectedPaket('');
-            // Update layanan aktif secara lokal agar UI tidak perlu direfresh penuh
+            // Update layanan aktif secara lokal agar UI sinkron
             setLayananAktif(res.data.paketBaru || 'Memuat...');
+            setIdPaketAktif(parseInt(selectedPaket));
+            setSelectedPaket('');
+            
+            if (res.data.redirect === 'tagihan') {
+                navigate('/tagihan');
+            }
         } catch (err) {
             console.error(err);
-            alert('Terjadi kesalahan saat mengajukan upgrade layanan.');
+            const errMsg = err.response?.data?.message || 'Terjadi kesalahan saat mengajukan upgrade layanan.';
+            alert(errMsg);
         } finally {
             setLoading(false);
         }

@@ -13,6 +13,7 @@ import AduanKeluhan from './components/AduanKeluhan.jsx';
 import PenjadwalanUlang from './components/PenjadwalanUlang.jsx';
 import Notifikasi from './components/Notifikasi.jsx';
 import Tagihan from './components/Tagihan.jsx';
+import EditProfile from './components/EditProfile.jsx';
 import StaffLogin from './components/StaffLogin.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import AdminManajemenPelanggan from './components/AdminManajemenPelanggan.jsx';
@@ -26,6 +27,8 @@ import TeknisiDashboard from './components/TeknisiDashboard.jsx';
 import TeknisiPenugasan from './components/TeknisiPenugasan.jsx';
 import TeknisiRiwayatPenugasan from './components/TeknisiRiwayatPenugasan.jsx';
 import OwnerDashboard from './components/OwnerDashboard.jsx';
+import OwnerLogActivity from './components/OwnerLogActivity.jsx';
+import OwnerLaporan from './components/OwnerLaporan.jsx';
 import './App.css';
 
 // Komponen inner yang bisa menggunakan useLocation
@@ -86,7 +89,7 @@ function AppContent() {
   }, [user]);
 
   // Semua halaman sudah punya navbar sendiri, jadi sembunyikan nav default
-  const hideDefaultNav = ['/', '/register', '/login', '/dashboard', '/mulai-berlangganan', '/lihat-produk', '/upgrade-layanan', '/penjadwalan-ulang', '/notifikasi', '/staff-login', '/admin-dashboard', '/admin/manajemen-pelanggan', '/admin/manajemen-layanan', '/admin/layanan/upgrade', '/admin/layanan/aduan', '/admin/layanan/reschedule', '/admin/manajemen-eticketing', '/teknisi-dashboard', '/teknisi-penugasan', '/teknisi-riwayat', '/owner-dashboard'].includes(location.pathname);
+  const hideDefaultNav = ['/', '/register', '/login', '/dashboard', '/mulai-berlangganan', '/lihat-produk', '/upgrade-layanan', '/penjadwalan-ulang', '/notifikasi', '/staff-login', '/admin-dashboard', '/admin/manajemen-pelanggan', '/admin/manajemen-layanan', '/admin/layanan/upgrade', '/admin/layanan/aduan', '/admin/layanan/reschedule', '/admin/manajemen-eticketing', '/teknisi-dashboard', '/teknisi-penugasan', '/teknisi-riwayat', '/owner-dashboard', '/owner-log-activity', '/owner/laporan', '/edit-profile', '/tagihan', '/aduan-keluhan', '/admin/manajemen-tagihan'].includes(location.pathname);
 
   return (
     <div className="App">
@@ -114,6 +117,13 @@ function AppContent() {
         <Route path="/dashboard" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <Dashboard user={user} />
+          </ProtectedRoute>
+        } />
+
+        {/* Edit Profil — untuk pelanggan */}
+        <Route path="/edit-profile" element={
+          <ProtectedRoute user={user} setUser={setUser}>
+            <EditProfile user={user} setUser={setUser} />
           </ProtectedRoute>
         } />
 
@@ -231,6 +241,18 @@ function AppContent() {
         <Route path="/owner-dashboard" element={
           <ProtectedRoute user={user} setUser={setUser}>
             <OwnerDashboard user={user} />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/owner-log-activity" element={
+          <ProtectedRoute user={user} setUser={setUser}>
+            <OwnerLogActivity user={user} />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/owner/laporan" element={
+          <ProtectedRoute user={user} setUser={setUser}>
+            <OwnerLaporan user={user} />
           </ProtectedRoute>
         } />
       </Routes>

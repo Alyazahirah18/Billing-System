@@ -11,6 +11,8 @@ const Dashboard = ({ user }) => {
         histori: []
     });
     const [loading, setLoading] = useState(true);
+    const [selectedInvoice, setSelectedInvoice] = useState(null);
+    const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -40,6 +42,19 @@ const Dashboard = ({ user }) => {
     const formatCurrency = (amount) => {
         if (!amount || amount === 0) return 'Rp 0';
         return `Rp ${Number(amount).toLocaleString('id-ID')}`;
+    };
+
+    const getMonthName = (monthNum) => {
+        const months = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        return months[monthNum - 1] || 'Januari';
+    };
+
+    const handleViewInvoice = (row) => {
+        setSelectedInvoice(row);
+        setIsInvoiceModalOpen(true);
     };
 
     return (
@@ -134,7 +149,7 @@ const Dashboard = ({ user }) => {
                                         </td>
                                         <td style={styles.td}>
                                             <button
-                                                onClick={() => alert(`Invoice: ${row.invoice}`)}
+                                                onClick={() => handleViewInvoice(row)}
                                                 style={styles.invoiceButton}
                                             >
                                                 📄
@@ -157,6 +172,89 @@ const Dashboard = ({ user }) => {
                     </div>
                 )}
             </div>
+
+            {/* Modal Invoice */}
+            {isInvoiceModalOpen && selectedInvoice && (
+                <div style={styles.modalOverlay} onClick={() => setIsInvoiceModalOpen(false)}>
+                    <div style={styles.invoiceModal} onClick={(e) => e.stopPropagation()}>
+                        {/* Header Modal */}
+                        <div style={styles.modalHeaderClose}>
+                            <button onClick={() => setIsInvoiceModalOpen(false)} style={styles.closeBtn}>&times;</button>
+                        </div>
+                        
+                        {/* Printable Area */}
+                        <div id="invoice-print-area" style={styles.invoicePaper}>
+                            <div style={styles.invoiceHeader}>
+                                <div>
+                                    <h2 style={styles.invoiceBrand}>PT Signal Kabel Media</h2>
+                                    <p style={styles.invoiceSubtitle}>Koneksi WiFi Stabil & Cepat</p>
+                                </div>
+                                <div style={styles.invoiceBadgeContainer}>
+                                    <span style={styles.invoiceStatusBadge}>{selectedInvoice.status.toUpperCase()}</span>
+                                </div>
+                            </div>
+
+                            <hr style={styles.divider} />
+
+                            <div style={styles.invoiceMetaRow}>
+                                <div style={styles.metaCol}>
+                                    <span style={styles.metaLabel}>KEPADA:</span>
+                                    <strong style={styles.metaValue}>{user?.nama || 'Pelanggan'}</strong>
+                                    <span style={styles.metaSubValue}>ID: {user?.kode_pelanggan || '-'}</span>
+                                    <span style={styles.metaSubValue}>{user?.alamat || '-'}</span>
+                                </div>
+                                <div style={styles.metaColRight}>
+                                    <span style={styles.metaLabel}>NO. INVOICE:</span>
+                                    <strong style={styles.metaValueBlue}>{selectedInvoice.invoice}</strong>
+                                    <span style={styles.metaSubValue}>Tanggal Bayar: {selectedInvoice.tanggal}</span>
+                                    <span style={styles.metaSubValue}>Metode: {selectedInvoice.metode_pembayaran}</span>
+                                    <span style={styles.metaSubValue}>ID Transaksi: {selectedInvoice.id_transaksi}</span>
+                                </div>
+                            </div>
+
+                            <table style={styles.invoiceTable}>
+                                <thead>
+                                    <tr style={styles.invoiceTableHeader}>
+                                        <th style={styles.invoiceTh}>Deskripsi Layanan</th>
+                                        <th style={styles.invoiceThCenter}>Periode</th>
+                                        <th style={styles.invoiceThRight}>Jumlah</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style={styles.invoiceTableRow}>
+                                        <td style={styles.invoiceTd}>
+                                            <strong>Biaya Berlangganan Internet</strong>
+                                            <div style={styles.itemSubtext}>Paket: {selectedInvoice.nama_paket}</div>
+                                        </td>
+                                        <td style={styles.invoiceTdCenter}>
+                                            {selectedInvoice.bulan_tagihan ? `${getMonthName(selectedInvoice.bulan_tagihan)} ${selectedInvoice.tahun_tagihan}` : selectedInvoice.tanggal}
+                                        </td>
+                                        <td style={styles.invoiceTdRight}>
+                                            {formatCurrency(selectedInvoice.harga_paket)}
+                                        </td>
+                                    </tr>
+                                    <tr style={styles.invoiceTableRow}>
+                                        <td colSpan="2" style={styles.invoiceTdRightTotal}><strong>Total Bayar:</strong></td>
+                                        <td style={styles.invoiceTdRightTotalVal}><strong>{formatCurrency(selectedInvoice.harga_paket)}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div style={styles.invoiceFooterSec}>
+                                <p style={styles.invoiceThankyou}>Terima kasih atas pembayaran Anda!</p>
+                                <p style={styles.invoiceFooterNote}>Invoice ini diterbitkan secara otomatis dan sah sebagai bukti pembayaran yang valid.</p>
+                            </div>
+                        </div>
+
+                        {/* Modal Action Buttons */}
+                        <div style={styles.modalActionRow}>
+                            <button onClick={() => setIsInvoiceModalOpen(false)} style={styles.doneBtn}>
+                                Selesai
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </DashboardLayout>
     );
 };
@@ -274,6 +372,231 @@ const styles = {
         padding: '60px 20px',
         color: '#94a3b8',
         textAlign: 'center'
+    },
+    modalOverlay: {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000,
+        padding: '20px',
+    },
+    invoiceModal: {
+        backgroundColor: '#fff',
+        borderRadius: '20px',
+        width: '100%',
+        maxWidth: '650px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'fadeIn 0.3s ease-out',
+    },
+    modalHeaderClose: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        padding: '12px 20px 0',
+    },
+    closeBtn: {
+        background: 'none',
+        border: 'none',
+        fontSize: '28px',
+        color: '#94a3b8',
+        cursor: 'pointer',
+        transition: 'color 0.2s',
+        padding: 0,
+        lineHeight: 1,
+    },
+    invoicePaper: {
+        padding: '10px 40px 30px',
+        backgroundColor: '#fff',
+        color: '#1e293b',
+    },
+    invoiceHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '15px',
+    },
+    invoiceBrand: {
+        fontSize: '24px',
+        fontWeight: '800',
+        color: '#5b6abf',
+        margin: 0,
+        letterSpacing: '-0.5px',
+    },
+    invoiceSubtitle: {
+        fontSize: '13px',
+        color: '#64748b',
+        margin: '4px 0 0 0',
+    },
+    invoiceBadgeContainer: {
+        display: 'flex',
+    },
+    invoiceStatusBadge: {
+        backgroundColor: '#22c55e15',
+        color: '#22c55e',
+        border: '1px solid #22c55e30',
+        padding: '6px 16px',
+        borderRadius: '30px',
+        fontSize: '12px',
+        fontWeight: '700',
+        letterSpacing: '1px',
+    },
+    divider: {
+        border: 'none',
+        borderTop: '2px dashed #e2e8f0',
+        margin: '20px 0',
+    },
+    invoiceMetaRow: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '20px',
+        marginBottom: '25px',
+        textAlign: 'left',
+    },
+    metaCol: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+    },
+    metaColRight: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        alignItems: 'flex-end',
+        textAlign: 'right',
+    },
+    metaLabel: {
+        fontSize: '11px',
+        fontWeight: '700',
+        color: '#94a3b8',
+        letterSpacing: '0.5px',
+        textTransform: 'uppercase',
+    },
+    metaValue: {
+        fontSize: '15px',
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    metaValueBlue: {
+        fontSize: '16px',
+        fontWeight: '800',
+        color: '#5b6abf',
+    },
+    metaSubValue: {
+        fontSize: '13px',
+        color: '#64748b',
+    },
+    invoiceTable: {
+        width: '100%',
+        borderCollapse: 'collapse',
+        margin: '20px 0',
+    },
+    invoiceTableHeader: {
+        borderBottom: '2px solid #e2e8f0',
+    },
+    invoiceTh: {
+        padding: '10px 0',
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#475569',
+        textTransform: 'uppercase',
+        textAlign: 'left',
+    },
+    invoiceThCenter: {
+        padding: '10px 0',
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#475569',
+        textTransform: 'uppercase',
+        textAlign: 'center',
+    },
+    invoiceThRight: {
+        padding: '10px 0',
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#475569',
+        textTransform: 'uppercase',
+        textAlign: 'right',
+    },
+    invoiceTableRow: {
+        borderBottom: '1px solid #f1f5f9',
+    },
+    invoiceTd: {
+        padding: '15px 0',
+        fontSize: '14px',
+        color: '#1e293b',
+        textAlign: 'left',
+    },
+    invoiceTdCenter: {
+        padding: '15px 0',
+        fontSize: '14px',
+        color: '#1e293b',
+        textAlign: 'center',
+    },
+    invoiceTdRight: {
+        padding: '15px 0',
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#1e293b',
+        textAlign: 'right',
+    },
+    itemSubtext: {
+        fontSize: '12px',
+        color: '#64748b',
+        marginTop: '3px',
+    },
+    invoiceTdRightTotal: {
+        padding: '20px 0 10px 0',
+        fontSize: '14px',
+        color: '#64748b',
+        textAlign: 'right',
+    },
+    invoiceTdRightTotalVal: {
+        padding: '20px 0 10px 0',
+        fontSize: '18px',
+        fontWeight: '800',
+        color: '#5b6abf',
+        textAlign: 'right',
+    },
+    invoiceFooterSec: {
+        marginTop: '30px',
+        textAlign: 'center',
+    },
+    invoiceThankyou: {
+        fontSize: '15px',
+        fontWeight: '700',
+        color: '#5b6abf',
+        margin: '0 0 6px 0',
+    },
+    invoiceFooterNote: {
+        fontSize: '11px',
+        color: '#94a3b8',
+        margin: 0,
+        lineHeight: '1.4',
+    },
+    modalActionRow: {
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '15px',
+        padding: '20px 40px 30px',
+        backgroundColor: '#f8fafc',
+        borderTop: '1px solid #f1f5f9',
+    },
+    doneBtn: {
+        padding: '12px 28px',
+        borderRadius: '10px',
+        border: 'none',
+        backgroundColor: '#5b6abf',
+        color: '#fff',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
     }
 };
 
@@ -289,6 +612,11 @@ styleSheet.textContent = `
     }
     .invoice-button:hover {
         background-color: #f1f5f9;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
     }
 `;
 document.head.appendChild(styleSheet);

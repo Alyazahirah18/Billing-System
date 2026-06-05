@@ -64,26 +64,30 @@ const Tagihan = ({ user }) => {
                         console.error('Gagal konfirmasi ke backend:', confirmErr);
                         alert('Pembayaran Anda berhasil di Midtrans, tetapi gagal diperbarui di database. Hubungi Admin.');
                         fetchTagihan();
+                    } finally {
+                        setActionLoading(false);
                     }
                 },
                 onPending: function (result) {
                     console.log('Payment pending callback:', result);
                     alert("Pembayaran tertunda. Silakan selesaikan pembayaran Anda sesuai instruksi.");
+                    setActionLoading(false);
                 },
                 onError: function (result) {
                     console.log('Payment error callback:', result);
                     alert("Pembayaran gagal!");
+                    setActionLoading(false);
                 },
                 onClose: function () {
                     console.log('Customer closed Snap popup');
                     alert("Anda menutup jendela pembayaran sebelum selesai.");
+                    setActionLoading(false);
                 }
             });
 
         } catch (err) {
             console.error('Error on pay bill:', err);
             alert('Gagal menginisialisasi pembayaran: ' + (err.response?.data?.message || err.message));
-        } finally {
             setActionLoading(false);
         }
     };
@@ -200,7 +204,7 @@ const Tagihan = ({ user }) => {
                         }}
                         disabled={actionLoading || !hasActiveBill || isPaid}
                     >
-                        {actionLoading ? 'Memproses...' : 'Bayar Tagihan'}
+                        {actionLoading ? 'Memproses...' : (isPaid ? 'Sudah Terbayar' : 'Bayar Tagihan')}
                     </button>
                 </div>
             </div>

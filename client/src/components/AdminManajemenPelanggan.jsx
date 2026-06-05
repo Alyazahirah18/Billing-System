@@ -23,6 +23,9 @@ const AdminManajemenPelanggan = ({ user }) => {
     useEffect(() => {
         fetchPelanggan();
         fetchPaket();
+        // Logika agar notifikasi manajemen pelanggan ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedPelanggan', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
     }, []);
 
     useEffect(() => {
@@ -58,8 +61,8 @@ const AdminManajemenPelanggan = ({ user }) => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Apakah Anda yakin ingin menghapus pelanggan ini?")) return;
-        
+        if (!await window.confirm("Apakah Anda yakin ingin menghapus pelanggan ini?")) return;
+
         try {
             const token = localStorage.getItem('token');
             await axios.delete(`http://localhost:5000/api/pelanggan/admin/${id}`, {
@@ -106,8 +109,8 @@ const AdminManajemenPelanggan = ({ user }) => {
         }
     };
 
-    const filteredPelanggan = pelanggan.filter(p => 
-        p.nama.toLowerCase().includes(search.toLowerCase()) || 
+    const filteredPelanggan = pelanggan.filter(p =>
+        p.nama.toLowerCase().includes(search.toLowerCase()) ||
         p.kode_user.toLowerCase().includes(search.toLowerCase())
     );
 
@@ -132,10 +135,10 @@ const AdminManajemenPelanggan = ({ user }) => {
                 </div>
 
                 <div style={styles.contentArea}>
-                    <input 
-                        type="text" 
-                        placeholder="Search" 
-                        style={styles.searchInput} 
+                    <input
+                        type="text"
+                        placeholder="Search"
+                        style={styles.searchInput}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -155,23 +158,31 @@ const AdminManajemenPelanggan = ({ user }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredPelanggan.map((p, idx) => (
-                                    <tr key={idx} style={styles.tr}>
-                                        <td style={styles.td}>{p.kode_user}</td>
-                                        <td style={styles.td}>{p.nama}</td>
-                                        <td style={styles.td}>{p.no_hp}</td>
-                                        <td style={styles.td}>{p.alamat}</td>
-                                        <td style={styles.td}>{p.paket_layanan}</td>
-                                        <td style={{...styles.td, color: p.status === 'AKTIF' ? '#2ecc71' : (p.status === 'BLOCKIR' ? '#000' : '#e74c3c'), fontWeight: 'bold' }}>
-                                            {p.status}
-                                        </td>
-                                        <td style={styles.td}>{p.jatuh_tempo}</td>
-                                        <td style={styles.td}>
-                                            <span style={styles.actionLink} onClick={() => openEditModal(p)}>Edit</span>{' '}
-                                            <span style={styles.actionLink} onClick={() => handleDelete(p.id_pelanggan)}>Delete</span>
+                                {filteredPelanggan.length > 0 ? (
+                                    filteredPelanggan.map((p, idx) => (
+                                        <tr key={idx} style={styles.tr}>
+                                            <td style={styles.td}>{p.kode_user}</td>
+                                            <td style={styles.td}>{p.nama}</td>
+                                            <td style={styles.td}>{p.no_hp}</td>
+                                            <td style={styles.td}>{p.alamat}</td>
+                                            <td style={styles.td}>{p.paket_layanan}</td>
+                                            <td style={{ ...styles.td, color: p.status === 'AKTIF' ? '#2ecc71' : (p.status === 'BLOCKIR' ? '#000' : '#e74c3c'), fontWeight: 'bold' }}>
+                                                {p.status}
+                                            </td>
+                                            <td style={styles.td}>{p.jatuh_tempo}</td>
+                                            <td style={styles.td}>
+                                                <span style={styles.actionLink} onClick={() => openEditModal(p)}>Edit</span>{' '}
+                                                <span style={styles.actionLink} onClick={() => handleDelete(p.id_pelanggan)}>Delete</span>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr style={styles.tr}>
+                                        <td colSpan="8" style={{ ...styles.td, color: '#888', padding: '30px' }}>
+                                            Pelanggan tidak terdaftar
                                         </td>
                                     </tr>
-                                ))}
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -187,11 +198,11 @@ const AdminManajemenPelanggan = ({ user }) => {
                         <div style={styles.formRow}>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Kode User</label>
-                                <input 
-                                    type="text" 
-                                    value={editData.kode_user} 
-                                    onChange={(e) => setEditData({...editData, kode_user: e.target.value})}
-                                    style={styles.input} 
+                                <input
+                                    type="text"
+                                    value={editData.kode_user}
+                                    onChange={(e) => setEditData({ ...editData, kode_user: e.target.value })}
+                                    style={styles.input}
                                 />
                             </div>
                             <div style={styles.formGroup}>
@@ -212,9 +223,9 @@ const AdminManajemenPelanggan = ({ user }) => {
 
                         <div style={styles.formGroupFull}>
                             <label style={styles.label}>Paket Layanan</label>
-                            <select 
-                                value={editData.id_paket} 
-                                onChange={(e) => setEditData({...editData, id_paket: e.target.value})}
+                            <select
+                                value={editData.id_paket}
+                                onChange={(e) => setEditData({ ...editData, id_paket: e.target.value })}
                                 style={styles.input}
                             >
                                 <option value="">Pilih Paket</option>

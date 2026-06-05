@@ -31,7 +31,7 @@ const PenjadwalanUlang = ({ user }) => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTickets(res.data);
-            
+
             // Auto-fill if passed from notification modal
             if (location.state && location.state.ticket) {
                 const passedTicket = location.state.ticket;
@@ -53,12 +53,10 @@ const PenjadwalanUlang = ({ user }) => {
     const fetchRiwayatReschedule = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/reschedule', {
+            const res = await axios.get('http://localhost:5000/api/dashboard/pelanggan/reschedule/riwayat', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            // Filter hanya milik pelanggan ini berdasarkan userId
-            const userData = JSON.parse(localStorage.getItem('user'));
-            if (userData && res.data.data) {
+            if (res.data && res.data.data) {
                 setRiwayat(res.data.data);
             }
         } catch (err) {

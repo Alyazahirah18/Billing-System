@@ -10,6 +10,32 @@ const Login = ({ setUser }) => {
         PASSWORD: '',
     });
 
+    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+    const [forgotData, setForgotData] = useState({
+        NO_HP: '',
+        NEW_PASSWORD: ''
+    });
+    const [forgotLoading, setForgotLoading] = useState(false);
+
+    const handleForgotChange = (e) => {
+        setForgotData({ ...forgotData, [e.target.name]: e.target.value });
+    };
+
+    const handleForgotSubmit = async (e) => {
+        e.preventDefault();
+        setForgotLoading(true);
+        try {
+            const res = await axios.post('http://localhost:5000/api/auth/forgot-password', forgotData);
+            alert(res.data.message);
+            setIsForgotModalOpen(false);
+            setForgotData({ NO_HP: '', NEW_PASSWORD: '' });
+        } catch (err) {
+            alert("Gagal reset password: " + (err.response?.data?.message || err.message));
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -91,6 +117,16 @@ const Login = ({ setUser }) => {
                             />
                         </div>
 
+                        <div style={{ textAlign: 'right', marginBottom: '15px', marginTop: '-10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setIsForgotModalOpen(true)}
+                                style={styles.forgotLink}
+                            >
+                                Lupa Password?
+                            </button>
+                        </div>
+
                         <div style={styles.buttonRow}>
                             <button type="submit" style={styles.submitButton}>
                                 Login
@@ -99,6 +135,53 @@ const Login = ({ setUser }) => {
                     </form>
                 </div>
             </div>
+
+            {/* Forgot Password Modal */}
+            {isForgotModalOpen && (
+                <div style={styles.modalOverlay} onClick={() => setIsForgotModalOpen(false)}>
+                    <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => setIsForgotModalOpen(false)} style={styles.modalCloseBtn}>&times;</button>
+                        <div style={styles.modalHeader}>
+                            <h3 style={styles.modalTitle}>Atur Ulang Password</h3>
+                            <p style={styles.modalSubtitle}>Masukkan nomor HP terdaftar Anda untuk membuat password baru</p>
+                        </div>
+                        <form onSubmit={handleForgotSubmit} style={styles.modalForm}>
+                            <div style={styles.modalFormGroup}>
+                                <label style={styles.modalLabel}>Nomor Handphone</label>
+                                <input
+                                    type="text"
+                                    name="NO_HP"
+                                    placeholder="Masukkan Nomor HP terdaftar"
+                                    value={forgotData.NO_HP}
+                                    onChange={handleForgotChange}
+                                    required
+                                    style={styles.modalInput}
+                                />
+                            </div>
+                            <div style={styles.modalFormGroup}>
+                                <label style={styles.modalLabel}>Password Baru</label>
+                                <input
+                                    type="password"
+                                    name="NEW_PASSWORD"
+                                    placeholder="Masukkan Password Baru"
+                                    value={forgotData.NEW_PASSWORD}
+                                    onChange={handleForgotChange}
+                                    required
+                                    style={styles.modalInput}
+                                />
+                            </div>
+                            <div style={styles.modalButtonRow}>
+                                <button type="button" onClick={() => setIsForgotModalOpen(false)} style={styles.modalCancelBtn}>
+                                    Batal
+                                </button>
+                                <button type="submit" disabled={forgotLoading} style={styles.modalSubmitBtn}>
+                                    {forgotLoading ? 'Memproses...' : 'Simpan Password'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Footer */}
             <footer style={styles.footer}>
@@ -124,8 +207,8 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '12px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
-        boxShadow: '0 2px 8px rgba(91,79,207,0.25)',
+        background: 'linear-gradient(135deg, #5656F1 0%, #41B6FF 100%)',
+        boxShadow: '0 2px 8px rgba(86,86,241,0.25)',
     },
     navLeft: {
         display: 'flex',
@@ -237,7 +320,7 @@ const styles = {
     /* ── Footer ── */
     footer: {
         padding: '16px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
+        background: '#5353FF',
         textAlign: 'center',
     },
     footerText: {
@@ -246,6 +329,120 @@ const styles = {
         margin: '2px 0',
         letterSpacing: '0.3px',
     },
+
+    forgotLink: {
+        background: 'none',
+        border: 'none',
+        color: '#fff',
+        fontSize: '13px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        textDecoration: 'underline',
+        padding: 0,
+        opacity: '0.9',
+        transition: 'opacity 0.2s',
+    },
+
+    /* ── Modal Lupa Password ── */
+    modalOverlay: {
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(26, 26, 46, 0.75)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+    },
+    modalContent: {
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        width: '420px',
+        maxWidth: '90%',
+        padding: '32px',
+        position: 'relative',
+        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+    },
+    modalCloseBtn: {
+        position: 'absolute',
+        top: '16px',
+        right: '20px',
+        background: 'none',
+        border: 'none',
+        fontSize: '24px',
+        color: '#666',
+        cursor: 'pointer',
+        transition: 'color 0.2s',
+    },
+    modalHeader: {
+        marginBottom: '24px',
+        textAlign: 'center',
+    },
+    modalTitle: {
+        fontSize: '22px',
+        fontWeight: '700',
+        color: '#1a1a2e',
+        margin: '0 0 8px 0',
+    },
+    modalSubtitle: {
+        fontSize: '13px',
+        color: '#666',
+        margin: 0,
+        lineHeight: '1.4',
+    },
+    modalForm: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '18px',
+    },
+    modalFormGroup: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        textAlign: 'left',
+    },
+    modalLabel: {
+        fontSize: '13px',
+        fontWeight: '600',
+        color: '#333',
+    },
+    modalInput: {
+        padding: '12px 14px',
+        borderRadius: '8px',
+        border: '1px solid #d0d5dd',
+        fontSize: '14px',
+        color: '#333',
+        outline: 'none',
+        width: '100%',
+        boxSizing: 'border-box',
+    },
+    modalButtonRow: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: '12px',
+        marginTop: '10px',
+    },
+    modalCancelBtn: {
+        padding: '10px 18px',
+        borderRadius: '8px',
+        border: '1px solid #d0d5dd',
+        backgroundColor: '#fff',
+        color: '#333',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+    },
+    modalSubmitBtn: {
+        padding: '10px 22px',
+        borderRadius: '8px',
+        border: 'none',
+        background: 'linear-gradient(135deg, #5656F1 0%, #41B6FF 100%)',
+        color: '#fff',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        boxShadow: '0 3px 8px rgba(86,86,241,0.2)',
+    }
 };
 
 export default Login;

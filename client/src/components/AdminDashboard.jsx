@@ -38,6 +38,38 @@ const AdminDashboard = ({ user }) => {
         fetchDashboardData();
     }, []);
 
+    const handleDownloadCSV = () => {
+        if (!recentCustomers || recentCustomers.length === 0) {
+            alert('Tidak ada data pelanggan baru untuk diunduh.');
+            return;
+        }
+
+        // Headers for CSV
+        const headers = ['User ID', 'Nama', 'Jenis Paket', 'No Handphone', 'Alamat', 'Tanggal'];
+
+        // Map data to CSV format
+        const csvRows = [
+            headers.join(','),
+            ...recentCustomers.map(c => [
+                `"${c.userId}"`,
+                `"${c.nama}"`,
+                `"${c.jenisPaket}"`,
+                `"${c.noHandphone}"`,
+                `"${c.alamat || '-'}"`,
+                `"${c.tanggal}"`
+            ].join(','))
+        ];
+
+        const csvContent = "data:text/csv;charset=utf-8," + csvRows.join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Data_Pelanggan_Baru_Pemasangan_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <DashboardLayout
             activeMenu="Dashboard"
@@ -129,7 +161,17 @@ const AdminDashboard = ({ user }) => {
 
                     {/* Tabel Pelanggan Terbaru */}
                     <div style={styles.tableSection}>
-                        <h3 style={styles.tableTitle}>Pelanggan Terbaru</h3>
+                        <div style={styles.tableHeaderContainer}>
+                            <h3 style={styles.tableTitle}>Pelanggan Terbaru</h3>
+                            <button onClick={handleDownloadCSV} style={styles.downloadBtn}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                Download Data
+                            </button>
+                        </div>
                         <div style={styles.tableWrapper}>
                             <table style={styles.table}>
                                 <thead>
@@ -138,13 +180,14 @@ const AdminDashboard = ({ user }) => {
                                         <th style={styles.th}>Nama</th>
                                         <th style={styles.th}>Jenis Paket</th>
                                         <th style={styles.th}>No Handphone</th>
+                                        <th style={styles.th}>Alamat</th>
                                         <th style={styles.th}>Tanggal</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {loading ? (
                                         <tr>
-                                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Memuat data...</td>
+                                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Memuat data...</td>
                                         </tr>
                                     ) : recentCustomers.length > 0 ? (
                                         recentCustomers.map((c, idx) => (
@@ -153,12 +196,13 @@ const AdminDashboard = ({ user }) => {
                                                 <td style={styles.td}>{c.nama}</td>
                                                 <td style={styles.td}>{c.jenisPaket}</td>
                                                 <td style={styles.td}>{c.noHandphone}</td>
+                                                <td style={styles.td}>{c.alamat || '-'}</td>
                                                 <td style={styles.td}>{c.tanggal}</td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>Belum ada pelanggan</td>
+                                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Belum ada pelanggan</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -263,7 +307,27 @@ const styles = {
         fontSize: '16px',
         fontWeight: '600',
         color: '#1a1a2e',
+        margin: 0,
+    },
+    tableHeaderContainer: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '16px',
+    },
+    downloadBtn: {
+        backgroundColor: '#10b981',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        padding: '8px 16px',
+        fontSize: '13px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        boxShadow: '0 2px 4px rgba(16,185,129,0.3)',
+        transition: 'background-color 0.2s',
     },
     tableWrapper: {
         backgroundColor: 'transparent',

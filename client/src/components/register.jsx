@@ -44,9 +44,11 @@ const Register = ({ setUser }) => {
             return;
         }
 
-        // Validasi password (minimal 6 karakter)
-        if (formData.PASSWORD.length < 6) {
-            setErrorMessage('Password minimal 6 karakter');
+        // Validasi password (minimal 6 karakter dan kombinasi huruf & angka)
+        const hasLetter = /[a-zA-Z]/.test(formData.PASSWORD);
+        const hasNumber = /[0-9]/.test(formData.PASSWORD);
+        if (formData.PASSWORD.length < 6 || !hasLetter || !hasNumber) {
+            setErrorMessage('Password minimal 6 karakter dan berupa kombinasi huruf dan angka');
             setIsLoading(false);
             return;
         }
@@ -248,8 +250,8 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '12px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
-        boxShadow: '0 2px 8px rgba(91,79,207,0.25)',
+        background: 'linear-gradient(135deg, #5656F1 0%, #41B6FF 100%)',
+        boxShadow: '0 2px 8px rgba(86,86,241,0.25)',
     },
     navLeft: {
         display: 'flex',
@@ -405,7 +407,7 @@ const styles = {
 
     footer: {
         padding: '16px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
+        background: '#5353FF',
         textAlign: 'center',
     },
     footerText: {

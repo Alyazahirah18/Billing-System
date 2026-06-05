@@ -10,12 +10,16 @@ const AdminManajemenETicketing = ({ user }) => {
     const [view, setView] = useState('table'); // 'table' or 'form'
     const [selectedAduan, setSelectedAduan] = useState(null);
     const [isRescheduleMode, setIsRescheduleMode] = useState(false);
+    const [isManualMode, setIsManualMode] = useState(false);
     const [originalTicketId, setOriginalTicketId] = useState(null);
+    const [pelangganList, setPelangganList] = useState([]);
     
     // Form States
     const [wilayahList, setWilayahList] = useState([]);
     const [teknisiList, setTeknisiList] = useState([]);
     const [formData, setFormData] = useState({
+        jenis_penugasan: 'Perbaikan',
+        id_pelanggan: '',
         prioritas: 'Sedang',
         wilayah: '',
         id_pegawai: '',
@@ -37,6 +41,10 @@ const AdminManajemenETicketing = ({ user }) => {
         fetchAduan();
         fetchWilayah();
 
+        // Logika agar notifikasi manajemen e-ticketing ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedEticketing', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
+
         // Handle direct from reschedule
         if (location.state && location.state.rescheduleData) {
             const rd = location.state.rescheduleData;
@@ -54,6 +62,7 @@ const AdminManajemenETicketing = ({ user }) => {
             setFormData({
                 ...formData,
                 nomorEticket: rd.e_ticket,
+                jenis_penugasan: 'Perbaikan', // default fallback for reschedule
                 prioritas: 'Sedang',
                 wilayah: '', // Will be filled by admin
                 id_pegawai: rd.id_pegawai || '',
@@ -101,6 +110,18 @@ const AdminManajemenETicketing = ({ user }) => {
         }
     };
 
+    const fetchPelangganAll = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/pelanggan-all', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPelangganList(res.data);
+        } catch (err) {
+            console.error("Gagal mengambil data pelanggan", err);
+        }
+    };
+
     const handleWilayahChange = (e) => {
         const selectedWilayah = e.target.value;
         setFormData({ ...formData, wilayah: selectedWilayah, id_pegawai: '' });
@@ -112,10 +133,33 @@ const AdminManajemenETicketing = ({ user }) => {
     };
 
     const handleJadwalkan = (aduan) => {
+        setIsManualMode(false);
         setSelectedAduan(aduan);
         setFormData({
             ...formData,
             nomorEticket: `SGJL${Math.floor(Math.random() * 1000) + 100}`, // Format SGJLxxx
+            jenis_penugasan: 'Perbaikan',
+            id_pelanggan: '',
+            prioritas: 'Sedang',
+            wilayah: '',
+            id_pegawai: '',
+            tanggal: '',
+            waktu: '',
+            deskripsi: ''
+        });
+        setTeknisiList([]);
+        setView('form');
+    };
+
+    const handleBuatManual = () => {
+        setIsManualMode(true);
+        setSelectedAduan(null);
+        fetchPelangganAll();
+        setFormData({
+            ...formData,
+            nomorEticket: `SGJL${Math.floor(Math.random() * 1000) + 100}`, // Format SGJLxxx
+            jenis_penugasan: 'Instalasi Pemasangan',
+            id_pelanggan: '',
             prioritas: 'Sedang',
             wilayah: '',
             id_pegawai: '',
@@ -130,6 +174,7 @@ const AdminManajemenETicketing = ({ user }) => {
     const handleBack = () => {
         setView('table');
         setSelectedAduan(null);
+        setIsManualMode(false);
     };
 
     const handleSubmit = async (e) => {
@@ -141,30 +186,54 @@ const AdminManajemenETicketing = ({ user }) => {
 
         try {
             const token = localStorage.getItem('token');
-            const payload = {
-                id_aduan: selectedAduan.id_aduan,
-                id_pegawai: formData.id_pegawai,
-                tanggal: formData.tanggal,
-                waktu: formData.waktu,
-                prioritas: formData.prioritas,
-                wilayah: formData.wilayah,
-                deskripsi: formData.deskripsi
-            };
-
-            if (isRescheduleMode && originalTicketId) {
-                await axios.put(`http://localhost:5000/api/dashboard/admin/layanan/eticketing/${originalTicketId}`, payload, {
+            
+            if (isManualMode) {
+                if (!formData.id_pelanggan) {
+                    alert("Harap pilih pelanggan.");
+                    return;
+                }
+                const payload = {
+                    id_pelanggan: formData.id_pelanggan,
+                    id_pegawai: formData.id_pegawai,
+                    tanggal: formData.tanggal,
+                    waktu: formData.waktu,
+                    jenis_penugasan: formData.jenis_penugasan,
+                    prioritas: formData.prioritas,
+                    wilayah: formData.wilayah,
+                    deskripsi: formData.deskripsi
+                };
+                await axios.post('http://localhost:5000/api/dashboard/admin/layanan/eticketing/manual', payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                alert('E-ticket berhasil diperbarui sesuai jadwal reschedule.');
+                alert('E-ticket manual berhasil dibuat dan ditugaskan.');
             } else {
-                await axios.post('http://localhost:5000/api/dashboard/admin/layanan/eticketing', payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                alert('E-ticket berhasil dibuat dan ditugaskan.');
+                const payload = {
+                    id_aduan: selectedAduan.id_aduan,
+                    id_pegawai: formData.id_pegawai,
+                    tanggal: formData.tanggal,
+                    waktu: formData.waktu,
+                    jenis_penugasan: formData.jenis_penugasan,
+                    prioritas: formData.prioritas,
+                    wilayah: formData.wilayah,
+                    deskripsi: formData.deskripsi
+                };
+
+                if (isRescheduleMode && originalTicketId) {
+                    await axios.put(`http://localhost:5000/api/dashboard/admin/layanan/eticketing/${originalTicketId}`, payload, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    alert('E-ticket berhasil diperbarui sesuai jadwal reschedule.');
+                } else {
+                    await axios.post('http://localhost:5000/api/dashboard/admin/layanan/eticketing', payload, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    alert('E-ticket berhasil dibuat dan ditugaskan.');
+                }
             }
             
             setView('table');
             setIsRescheduleMode(false);
+            setIsManualMode(false);
             setOriginalTicketId(null);
             fetchAduan(); // Refresh data table
         } catch (err) {
@@ -198,8 +267,15 @@ const AdminManajemenETicketing = ({ user }) => {
 
                 <div style={styles.contentArea}>
                     {view === 'table' ? (
-                        <div style={styles.tableContainer}>
-                            <table style={styles.table}>
+                        <div style={styles.tableSection}>
+                            <div style={styles.tableHeaderContainer}>
+                                <h3 style={styles.tableTitle}>Daftar Aduan (Menunggu E-ticket)</h3>
+                                <button onClick={handleBuatManual} style={styles.buatManualBtn}>
+                                    + Buat E-ticket
+                                </button>
+                            </div>
+                            <div style={styles.tableContainer}>
+                                <table style={styles.table}>
                                 <thead>
                                     <tr>
                                         <th style={styles.th}>No Aduan</th>
@@ -238,6 +314,7 @@ const AdminManajemenETicketing = ({ user }) => {
                                 </tbody>
                             </table>
                         </div>
+                        </div>
                     ) : (
                         // Form Penjadwalan View
                         <div style={styles.formContainer}>
@@ -252,28 +329,67 @@ const AdminManajemenETicketing = ({ user }) => {
                                             style={styles.inputDisabled} 
                                         />
                                     </div>
-                                    <div style={styles.formGroup}>
-                                        <label style={styles.label}>Nomor Aduan</label>
-                                        <input 
-                                            type="text" 
-                                            value={selectedAduan.noAduan} 
-                                            disabled 
-                                            style={styles.inputDisabled} 
-                                        />
-                                    </div>
-                                    <div style={styles.formGroup}>
-                                        <label style={styles.label}>Status</label>
-                                        <input 
-                                            type="text" 
-                                            value={selectedAduan.status} 
-                                            disabled 
-                                            style={styles.inputDisabled} 
-                                        />
-                                    </div>
+                                    {isManualMode ? (
+                                        <div style={styles.formGroup}>
+                                            <label style={styles.label}>Pilih Pelanggan</label>
+                                            <div style={styles.selectWrapper}>
+                                                <select 
+                                                    value={formData.id_pelanggan}
+                                                    onChange={(e) => setFormData({...formData, id_pelanggan: e.target.value})}
+                                                    style={styles.select}
+                                                    required
+                                                >
+                                                    <option value="">Pilih Pelanggan</option>
+                                                    {pelangganList.map(p => (
+                                                        <option key={p.ID_PELANGGAN} value={p.ID_PELANGGAN}>
+                                                            {p.KODE_PELANGGAN} - {p.NAMA_PELANGGAN}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div style={styles.dropdownIcon}>▼</div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div style={styles.formGroup}>
+                                                <label style={styles.label}>Nomor Aduan</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={selectedAduan?.noAduan || ''} 
+                                                    disabled 
+                                                    style={styles.inputDisabled} 
+                                                />
+                                            </div>
+                                            <div style={styles.formGroup}>
+                                                <label style={styles.label}>Status</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={selectedAduan?.status || ''} 
+                                                    disabled 
+                                                    style={styles.inputDisabled} 
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div style={styles.formRow}>
-                                    <div style={styles.formGroupFull}>
+                                    <div style={styles.formGroup}>
+                                        <label style={styles.label}>Jenis Penugasan</label>
+                                        <div style={styles.selectWrapper}>
+                                            <select 
+                                                value={formData.jenis_penugasan}
+                                                onChange={(e) => setFormData({...formData, jenis_penugasan: e.target.value})}
+                                                style={styles.select}
+                                            >
+                                                <option value="Perbaikan">Perbaikan</option>
+                                                <option value="Instalasi Pemasangan">Instalasi Pemasangan</option>
+                                                <option value="Pemutusan">Pemutusan</option>
+                                            </select>
+                                            <div style={styles.dropdownIcon}>▼</div>
+                                        </div>
+                                    </div>
+                                    <div style={styles.formGroup}>
                                         <label style={styles.label}>Prioritas</label>
                                         <div style={styles.selectWrapper}>
                                             <select 
@@ -419,6 +535,34 @@ const styles = {
         backgroundColor: '#e9ebf0',
         padding: '30px 40px',
         flex: 1,
+    },
+    tableSection: {
+        display: 'flex',
+        flexDirection: 'column',
+    },
+    tableHeaderContainer: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '16px',
+    },
+    tableTitle: {
+        fontSize: '16px',
+        fontWeight: '600',
+        color: '#1a1a2e',
+        margin: 0,
+    },
+    buatManualBtn: {
+        backgroundColor: '#5b6abf',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        padding: '8px 16px',
+        fontSize: '13px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        boxShadow: '0 2px 4px rgba(91,106,191,0.3)',
+        transition: 'background-color 0.2s',
     },
     tableContainer: {
         backgroundColor: 'transparent',

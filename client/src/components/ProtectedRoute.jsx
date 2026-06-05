@@ -20,7 +20,7 @@ const ProtectedRoute = ({ children, user, setUser }) => {
                 const res = await axios.get('http://localhost:5000/api/auth/me', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                
+
                 // Update state jika data server berbeda (opsional tapi disarankan)
                 setUser(res.data.user);
                 setIsVerified(true);
@@ -47,13 +47,12 @@ const ProtectedRoute = ({ children, user, setUser }) => {
         return <Navigate to="/login" />;
     }
 
-    // Jika sudah login tapi BELUM BAYAR (status masih calon),
-    // kunci mereka di halaman pembayaran awal.
+    // Jika status calon pelanggan, hanya bisa akses halaman mulai berlangganan
     if (user.status_langganan === 'calon') {
         return <Navigate to="/mulai-berlangganan" />;
     }
 
-    // Jika sudah bayar, baru boleh lewat
+    // Jika cp sudah bayar, baru bisa akses semua menu di sidebar
     return children;
 };
 

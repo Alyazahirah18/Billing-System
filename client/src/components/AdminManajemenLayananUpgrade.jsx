@@ -17,38 +17,51 @@ const AdminManajemenLayananUpgrade = ({ user }) => {
         { label: 'Manajemen E-ticketing', path: '/admin/manajemen-eticketing' },
     ];
 
+    const fetchUpgradeData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/upgrade', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setTotal(res.data.total);
+            setData(res.data.data);
+            setLoading(false);
+        } catch (err) {
+            console.error("Gagal mengambil data upgrade", err);
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchUpgradeData = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/upgrade', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setTotal(res.data.total);
-                setData(res.data.data);
-                setLoading(false);
-            } catch (err) {
-                console.error("Gagal mengambil data upgrade", err);
-                setLoading(false);
-            }
-        };
         fetchUpgradeData();
+        // Logika agar notifikasi manajemen layanan ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedLayanan', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
     }, []);
 
     const handleConfirm = async (id_upgrade, nama_pelanggan, userId) => {
-        if (!window.confirm(`Konfirmasi permintaan upgrade untuk ${nama_pelanggan}?`)) return;
+        if (!await window.confirm(`Konfirmasi permintaan upgrade/downgrade untuk ${nama_pelanggan}?`)) return;
         
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/dashboard/admin/layanan/upgrade/confirm', 
+            const res = await axios.post('http://localhost:5000/api/dashboard/admin/layanan/upgrade/confirm', 
                 { id_upgrade }, 
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            alert('Permintaan upgrade berhasil dikonfirmasi.');
-            navigate('/admin/manajemen-pelanggan', { state: { autoEditUser: userId } });
+            
+            const { type, message } = res.data;
+            alert(message || 'Permintaan berhasil dikonfirmasi.');
+
+            if (type === 'downgrade') {
+                // Untuk downgrade, langsung arahkan admin ke halaman manajemen pelanggan untuk melihat perubahan paket
+                navigate('/admin/manajemen-pelanggan', { state: { autoEditUser: userId } });
+            } else {
+                // Untuk upgrade, muat ulang daftar pengajuan karena sekarang statusnya menunggu pembayaran
+                fetchUpgradeData();
+            }
         } catch (err) {
             console.error('Gagal konfirmasi', err);
-            alert('Terjadi kesalahan saat mengkonfirmasi upgrade.');
+            alert('Terjadi kesalahan saat mengkonfirmasi permintaan.');
         }
     };
 
@@ -120,7 +133,7 @@ const AdminManajemenLayananUpgrade = ({ user }) => {
                                                     style={styles.actionBtn} 
                                                     onClick={() => handleConfirm(item.id_upgrade, item.nama, item.userId)}
                                                 >
-                                                    Detail
+                                                    Konfirmasi
                                                 </button>
                                             </td>
                                         </tr>

@@ -27,6 +27,9 @@ const AdminManajemenLayananReschedule = ({ user }) => {
 
     useEffect(() => {
         fetchRescheduleData();
+        // Logika agar notifikasi manajemen layanan ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedLayanan', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
     }, []);
 
     const fetchRescheduleData = async () => {
@@ -56,7 +59,7 @@ const AdminManajemenLayananReschedule = ({ user }) => {
 
     const handleUpdateStatus = async (newStatus) => {
         const label = newStatus === 'disetujui' ? 'Menyetujui' : 'Menolak';
-        if (!window.confirm(`Apakah Anda yakin ${label} reschedule ini?`)) return;
+        if (!await window.confirm(`Apakah Anda yakin ${label} reschedule ini?`)) return;
 
         try {
             const token = localStorage.getItem('token');

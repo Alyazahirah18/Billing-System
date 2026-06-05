@@ -61,8 +61,7 @@ const AduanKeluhan = ({ user }) => {
             const token = localStorage.getItem('token');
             await axios.post('http://localhost:5000/api/aduan', formData, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'multipart/form-data'
+                    Authorization: `Bearer ${token}`
                 }
             });
             alert('Aduan berhasil diajukan');
@@ -92,6 +91,23 @@ const AduanKeluhan = ({ user }) => {
         setIsDetailModalOpen(false);
         setIsTicketModalOpen(false);
         setSelectedAduan(null);
+    };
+
+    const handleKonfirmasiSelesai = async (idAduan) => {
+        const confirmAction = await window.confirm("Apakah Anda yakin ingin menyatakan bahwa aduan ini telah selesai ditangani?");
+        if (!confirmAction) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`http://localhost:5000/api/aduan/konfirmasi/${idAduan}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Aduan berhasil dikonfirmasi selesai.');
+            fetchRiwayat();
+        } catch (err) {
+            console.error("Gagal mengonfirmasi aduan", err);
+            alert(err.response?.data?.message || 'Gagal mengonfirmasi aduan selesai');
+        }
     };
 
     const formatDate = (dateStr) => {
@@ -211,6 +227,20 @@ const AduanKeluhan = ({ user }) => {
                                                             <path d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2zm-2 7.5c-1.88 0-3.41-1.53-3.41-3.41S18.12 10.68 20 10.68V7h-3v2h-2V7H9v2H7V7H5v3.68c1.88 0 3.41 1.53 3.41 3.41S6.88 17.5 5 17.5V19h15v-1.5z" />
                                                         </svg>
                                                     </button>
+                                                    {aduan.STATUS_ADUAN === 'proses' && aduan.Ticket?.TICKET_STATUS === 'selesai' && (
+                                                        <button
+                                                            type="button"
+                                                            style={styles.iconBtn}
+                                                            onClick={() => handleKonfirmasiSelesai(aduan.ID_ADUAN)}
+                                                            title="Konfirmasi Selesai"
+                                                        >
+                                                            {/* Check Circle Icon */}
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+                                                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                                            </svg>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div style={styles.cardRight}>

@@ -39,9 +39,9 @@ router.post('/create-transaction', verifyToken, async (req, res) => {
         // Create Tagihan awal
         const today = new Date();
         const jatuhTempo = new Date(today);
-        jatuhTempo.setDate(jatuhTempo.getDate() + 1); // 1 hari batas bayar
+        jatuhTempo.setDate(jatuhTempo.getDate() + 1);
 
-        const nomorTagihan = Math.floor(100000 + Math.random() * 900000); // 6 digit random
+        const nomorTagihan = Math.floor(100000 + Math.random() * 900000);
 
         // Konfigurasi Parameter Midtrans
         const parameter = {
@@ -109,10 +109,29 @@ router.post('/pay-bill', verifyToken, async (req, res) => {
         }
 
         // Dapatkan data Paket untuk item details
-        const paket = await Paket.findByPk(pelanggan.ID_PAKET);
+        const { UpgradeLayanan } = require('../models');
+        let paket = await Paket.findByPk(pelanggan.ID_PAKET);
+        let itemName = paket ? `Paket ${paket.NAMA_PAKET}` : 'Tagihan Layanan Internet';
 
         // Generate New Order ID for this payment attempt
-        const orderId = `TAG-${id_tagihan}-${Date.now()}`;
+        let orderId;
+        const isUpgrade = tagihan.ID_TRANSAKSI && tagihan.ID_TRANSAKSI.startsWith('UPG-');
+
+        if (isUpgrade) {
+            const parts = tagihan.ID_TRANSAKSI.split('-');
+            const id_upgrade = parts[1] || '0';
+            orderId = `UPG-${id_upgrade}-${pelanggan.ID_PELANGGAN}-${Date.now()}`;
+
+            // Ambil info paket upgrade untuk ditampilkan sebagai item name di Snap
+            const upgradeRequest = await UpgradeLayanan.findByPk(id_upgrade, {
+                include: [{ model: Paket, as: 'PaketBaru' }]
+            });
+            if (upgradeRequest && upgradeRequest.PaketBaru) {
+                itemName = `Upgrade Paket: ${upgradeRequest.PaketBaru.NAMA_PAKET}`;
+            }
+        } else {
+            orderId = `TAG-${id_tagihan}-${Date.now()}`;
+        }
 
         // Konfigurasi Parameter Midtrans
         const parameter = {
@@ -128,7 +147,7 @@ router.post('/pay-bill', verifyToken, async (req, res) => {
                 id: tagihan.ID_TAGIHAN.toString(),
                 price: Math.round(tagihan.JUMLAH_BAYAR),
                 quantity: 1,
-                name: paket ? `Paket ${paket.NAMA_PAKET}` : 'Tagihan Layanan Internet'
+                name: itemName.substring(0, 50)
             }]
         };
 
@@ -200,21 +219,77 @@ router.post('/success', verifyToken, async (req, res) => {
         // Update Pelanggan status langganan dan paket
         const pelanggan = await Pelanggan.findByPk(tagihan.ID_PELANGGAN);
         if (pelanggan) {
-            await pelanggan.update({
-                STATUS_PELANGGAN: 'aktif', // atau STATUS_LANGGANAN: 'aktif'
-                STATUS_LANGGANAN: 'aktif',
-                ID_PAKET: id_paket || pelanggan.ID_PAKET
-            });
+            const isUpgradePayment = order_id.startsWith('UPG-');
 
-            // Buat Notifikasi
-            const { Notifikasi } = require('../models');
-            await Notifikasi.create({
-                ID_PELANGGAN: pelanggan.ID_PELANGGAN,
-                JUDUL: 'Pembayaran Berhasil',
-                DESKRIPSI_PESAN: `Terima kasih! Pembayaran tagihan Anda dengan Order ID ${order_id} telah berhasil diverifikasi. Layanan Anda kini aktif.`,
-                KATEGORI_NOTIFIKASI: 'pembayaran',
-                TANGGAL_NOTIFIKASI: new Date()
-            });
+            if (isUpgradePayment) {
+                // Parse id_upgrade dari order_id, format: UPG-[id_upgrade]-[id_pelanggan]-[timestamp]
+                const parts = order_id.split('-');
+                const id_upgrade = parts[1];
+
+                const { UpgradeLayanan, Paket } = require('../models');
+                const upgradeRequest = await UpgradeLayanan.findByPk(id_upgrade);
+
+                if (upgradeRequest) {
+                    const { Op } = require('sequelize');
+
+                    // Hapus tagihan bulanan reguler (TAG-) di masa mendatang yang belum dibayar.
+                    // Hal ini memastikan setelah bayar upgrade, pelanggan tidak bingung melihat tagihan reguler yang pending.
+                    const todayDateOnly = new Date();
+                    todayDateOnly.setHours(0, 0, 0, 0);
+
+                    await Tagihan.destroy({
+                        where: {
+                            ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                            ID_TRANSAKSI: { [Op.like]: 'TAG-%' },
+                            STATUS_PEMBAYARAN: 'menunggu_verifikasi',
+                            JATUH_TEMPO: { [Op.gt]: todayDateOnly }
+                        }
+                    });
+
+                    // Hapus tagihan UPG- lain yang mungkin ganda atau kadaluwarsa
+                    await Tagihan.destroy({
+                        where: {
+                            ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                            ID_TRANSAKSI: { [Op.like]: 'UPG-%', [Op.ne]: order_id },
+                            STATUS_PEMBAYARAN: 'menunggu_verifikasi'
+                        }
+                    });
+
+                    // Buat Notifikasi khusus upgrade
+                    const { Notifikasi } = require('../models');
+                    const paketBaru = await Paket.findByPk(upgradeRequest.ID_PAKET_BARU);
+                    await Notifikasi.create({
+                        ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                        JUDUL: 'Pembayaran Upgrade Berhasil',
+                        DESKRIPSI_PESAN: `Terima kasih! Pembayaran tagihan upgrade Anda telah berhasil diverifikasi. Pengajuan ke paket "${paketBaru ? paketBaru.NAMA_PAKET : '-'}" saat ini sedang menunggu konfirmasi admin.`,
+                        KATEGORI_NOTIFIKASI: 'upgrade',
+                        TANGGAL_NOTIFIKASI: new Date()
+                    });
+                } else {
+                    // Fallback jika record tidak ditemukan
+                    await pelanggan.update({
+                        STATUS_PELANGGAN: 'aktif',
+                        STATUS_LAYANAN: 'aktif'
+                    });
+                }
+            } else {
+                // Pembayaran tagihan reguler
+                await pelanggan.update({
+                    STATUS_PELANGGAN: 'aktif',
+                    STATUS_LAYANAN: 'aktif',
+                    ID_PAKET: id_paket || pelanggan.ID_PAKET
+                });
+
+                // Buat Notifikasi reguler
+                const { Notifikasi } = require('../models');
+                await Notifikasi.create({
+                    ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                    JUDUL: 'Pembayaran Berhasil',
+                    DESKRIPSI_PESAN: `Terima kasih! Pembayaran tagihan Anda dengan Order ID ${order_id} telah berhasil diverifikasi. Layanan Anda kini aktif.`,
+                    KATEGORI_NOTIFIKASI: 'pembayaran',
+                    TANGGAL_NOTIFIKASI: new Date()
+                });
+            }
         }
 
         res.json({
@@ -223,7 +298,7 @@ router.post('/success', verifyToken, async (req, res) => {
                 id: pelanggan.ID_PELANGGAN,
                 nama: pelanggan.NAMA || pelanggan.NAMA_PELANGGAN,
                 id_paket: pelanggan.ID_PAKET,
-                status_langganan: pelanggan.STATUS_LANGGANAN || pelanggan.STATUS_PELANGGAN
+                STATUS_LAYANAN: pelanggan.STATUS_LAYANAN || pelanggan.STATUS_PELANGGAN
             }
         });
 

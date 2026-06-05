@@ -144,8 +144,8 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '12px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
-        boxShadow: '0 2px 8px rgba(91,79,207,0.25)',
+        background: 'linear-gradient(135deg, #5656F1 0%, #41B6FF 100%)',
+        boxShadow: '0 2px 8px rgba(86,86,241,0.25)',
     },
     navLeft: { display: 'flex', alignItems: 'center' },
     navRight: { display: 'flex', alignItems: 'center', gap: '28px' },
@@ -191,7 +191,7 @@ const styles = {
         boxShadow: '0 3px 10px rgba(108,99,255,0.3)', letterSpacing: '0.3px'
     },
     footer: {
-        padding: '16px 40px', background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
+        padding: '16px 40px', background: '#5353FF',
         textAlign: 'center'
     },
     footerText: { color: '#fff', fontSize: '12px', margin: '2px 0', letterSpacing: '0.3px' }

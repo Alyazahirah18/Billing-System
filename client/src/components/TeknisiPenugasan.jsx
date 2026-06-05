@@ -11,6 +11,7 @@ const TeknisiPenugasan = ({ user }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
+    const [notesTeknisi, setNotesTeknisi] = useState('');
 
     const teknisiMenu = [
         { label: 'Dashboard', path: '/teknisi-dashboard' },
@@ -50,13 +51,19 @@ const TeknisiPenugasan = ({ user }) => {
         setIsModalOpen(false);
         setIsTicketModalOpen(false);
         setSelectedItem(null);
+        setNotesTeknisi('');
     };
 
     const handleUpdateStatus = async (newStatus) => {
+        if (newStatus === 'selesai' && !notesTeknisi.trim()) {
+            alert('Mohon isi catatan penanganan terlebih dahulu sebelum menyelesaikan penugasan.');
+            return;
+        }
+
         try {
             const token = localStorage.getItem('token');
             await axios.put(`http://localhost:5000/api/dashboard/teknisi/penugasan/${selectedItem.id_ticket}`,
-                { status: newStatus },
+                { status: newStatus, notes_teknisi: notesTeknisi },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             alert('Status penugasan berhasil diperbarui.');
@@ -185,6 +192,19 @@ const TeknisiPenugasan = ({ user }) => {
                             <div style={styles.descBox}>{selectedItem.deskripsi || '-'}</div>
 
                             <p><strong>Status Saat Ini:</strong> <span style={{ color: getStatusColor(selectedItem.status), fontWeight: 'bold' }}>{selectedItem.status}</span></p>
+
+                            {selectedItem.raw_status === 'on progress' && (
+                                <div style={styles.notesContainer}>
+                                    <p><strong>Catatan Penanganan:</strong></p>
+                                    <textarea
+                                        style={styles.textarea}
+                                        placeholder="Tuliskan detail perbaikan atau penugasan yang telah dilakukan..."
+                                        value={notesTeknisi}
+                                        onChange={(e) => setNotesTeknisi(e.target.value)}
+                                        rows="4"
+                                    />
+                                </div>
+                            )}
 
                             <div style={styles.actionButtonsContainer}>
                                 {selectedItem.raw_status === 'open' && (
@@ -454,6 +474,19 @@ const styles = {
         textAlign: 'center',
         fontSize: '12px',
         color: '#666'
+    },
+    notesContainer: {
+        marginTop: '15px',
+        marginBottom: '10px'
+    },
+    textarea: {
+        width: '100%',
+        padding: '10px',
+        borderRadius: '6px',
+        border: '1px solid #ccc',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        resize: 'vertical'
     }
 };
 

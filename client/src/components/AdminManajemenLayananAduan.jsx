@@ -25,6 +25,9 @@ const AdminManajemenLayananAduan = ({ user }) => {
 
     useEffect(() => {
         fetchAduanData();
+        // Logika agar notifikasi manajemen layanan ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedLayanan', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
     }, []);
 
     const fetchAduanData = async () => {
@@ -53,7 +56,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
     };
 
     const handleUpdateStatus = async (newStatus) => {
-        if (!window.confirm(`Apakah Anda yakin mengubah status menjadi ${newStatus === 'proses' ? 'Menunggu Perbaikan' : 'Selesai'}?`)) return;
+        if (!await window.confirm(`Apakah Anda yakin mengubah status menjadi ${newStatus === 'proses' ? 'Menunggu Perbaikan' : 'Selesai'}?`)) return;
 
         try {
             const token = localStorage.getItem('token');
@@ -72,8 +75,10 @@ const AdminManajemenLayananAduan = ({ user }) => {
 
     // Filter data based on search term and status
     const filteredData = data.filter(item => {
-        const matchSearch = item.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.subjek.toLowerCase().includes(searchTerm.toLowerCase());
+        const userIdStr = (item.userId || '').toString().toLowerCase();
+        const subjekStr = (item.subjek || '').toString().toLowerCase();
+        const matchSearch = userIdStr.includes(searchTerm.toLowerCase()) ||
+            subjekStr.includes(searchTerm.toLowerCase());
 
         let matchStatus = true;
         if (statusFilter !== 'Semua Status') {

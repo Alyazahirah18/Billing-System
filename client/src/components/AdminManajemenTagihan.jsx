@@ -25,6 +25,9 @@ const AdminManajemenTagihan = ({ user }) => {
 
     useEffect(() => {
         fetchData();
+        // Logika agar notifikasi manajemen tagihan ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedTagihan', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
     }, []);
 
     const fetchData = async () => {
@@ -43,12 +46,17 @@ const AdminManajemenTagihan = ({ user }) => {
         }
     };
 
-    const handleUpdateStatus = async (customerId, newStatus) => {
+    const handleUpdateStatus = async (customerId, newStatus, currentBillStatus) => {
+        if (newStatus === 'blokir' && currentBillStatus !== 'JATUH TEMPO') {
+            alert("Pelanggan ini masih berstatus AKTIF dan belum memasuki waktu jatuh tempo. Pemblokiran layanan tidak dapat dilakukan.");
+            return;
+        }
+
         const confirmMessage = newStatus === 'aktif' 
             ? "Apakah Anda yakin ingin mengaktifkan kembali layanan untuk pelanggan ini?"
             : "Apakah Anda yakin ingin memblokir layanan untuk pelanggan ini?";
             
-        if (!window.confirm(confirmMessage)) return;
+        if (!await window.confirm(confirmMessage)) return;
 
         try {
             const token = localStorage.getItem('token');
@@ -65,8 +73,8 @@ const AdminManajemenTagihan = ({ user }) => {
         }
     };
 
-    // Filter Logic
-    const filteredCustomers = data.customers.filter(c => {
+    // Filter and Sort Logic
+    let filteredCustomers = data.customers.filter(c => {
         const matchesSearch = c.nama.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               c.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               c.jenisPaket.toLowerCase().includes(searchTerm.toLowerCase());
@@ -76,6 +84,14 @@ const AdminManajemenTagihan = ({ user }) => {
         }
         return matchesSearch && c.status.toUpperCase() === statusFilter.toUpperCase();
     });
+
+    if (statusFilter === 'BLOCKIR') {
+        filteredCustomers = [...filteredCustomers].sort((a, b) => {
+            if (a.jatuhTempoRaw === null || a.jatuhTempoRaw === undefined) return 1;
+            if (b.jatuhTempoRaw === null || b.jatuhTempoRaw === undefined) return -1;
+            return a.jatuhTempoRaw - b.jatuhTempoRaw; // Ascending: oldest/earliest date first
+        });
+    }
 
     return (
         <DashboardLayout
@@ -203,7 +219,7 @@ const AdminManajemenTagihan = ({ user }) => {
                                                     <div style={styles.actionIconContainer}>
                                                         {/* Wifi Signal Icon (Aktifkan) */}
                                                         <button
-                                                            onClick={() => handleUpdateStatus(customer.id_pelanggan, 'aktif')}
+                                                            onClick={() => handleUpdateStatus(customer.id_pelanggan, 'aktif', customer.status)}
                                                             style={styles.actionButton}
                                                             title="Aktifkan Layanan"
                                                             disabled={customer.statusLayanan === 'aktif'}
@@ -218,12 +234,12 @@ const AdminManajemenTagihan = ({ user }) => {
 
                                                         {/* Forbidden Block Icon (Blokir) */}
                                                         <button
-                                                            onClick={() => handleUpdateStatus(customer.id_pelanggan, 'blokir')}
+                                                            onClick={() => handleUpdateStatus(customer.id_pelanggan, 'blokir', customer.status)}
                                                             style={styles.actionButton}
                                                             title="Blokir Layanan"
                                                             disabled={customer.statusLayanan === 'blokir'}
                                                         >
-                                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={customer.statusLayanan === 'blokir' ? '#ff4747' : '#555555'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={customer.statusLayanan === 'blokir' ? '#ff4747' : (customer.status !== 'JATUH TEMPO' ? '#b0b5be' : '#555555')} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                                 <circle cx="12" cy="12" r="10" />
                                                                 <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
                                                             </svg>

@@ -47,7 +47,7 @@ const Katalog = () => {
                                 Rp {item.HARGA_PAKET} <span style={{ fontSize: '14px', color: '#888' }}>/bulan</span>
                             </h3>
                             <ul style={{ listStyle: 'none', padding: 0, marginBottom: '24px', textAlign: 'left' }}>
-                                <li style={{ padding: '4px 0', color: '#555' }}>✅ Speed up to 20 Mbps</li>
+                                <li style={{ padding: '4px 0', color: '#555' }}>✅ Speed up </li>
                                 <li style={{ padding: '4px 0', color: '#555' }}>✅ Unlimited Quota</li>
                                 <li style={{ padding: '4px 0', color: '#555' }}>✅ Free Instalasi</li>
                             </ul>
@@ -85,8 +85,8 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '12px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
-        boxShadow: '0 2px 8px rgba(91,79,207,0.25)',
+        background: 'linear-gradient(135deg, #5656F1 0%, #41B6FF 100%)',
+        boxShadow: '0 2px 8px rgba(86,86,241,0.25)',
     },
     navLeft: {
         display: 'flex',
@@ -142,7 +142,7 @@ const styles = {
     /* ── Footer ── */
     footer: {
         padding: '16px 40px',
-        background: 'linear-gradient(135deg, #5b4fcf 0%, #6c63ff 30%, #7b9cf7 70%, #a8d8ea 100%)',
+        background: '#5353FF',
         textAlign: 'center',
     },
     footerText: {

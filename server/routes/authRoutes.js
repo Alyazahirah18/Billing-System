@@ -44,6 +44,13 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'Nama, password, nomor telepon, dan alamat wajib diisi.' });
         }
 
+        // Validasi password
+        const hasLetter = /[a-zA-Z]/.test(PASSWORD);
+        const hasNumber = /[0-9]/.test(PASSWORD);
+        if (PASSWORD.length < 6 || !hasLetter || !hasNumber) {
+            return res.status(400).json({ message: 'Password harus minimal 6 karakter dan merupakan kombinasi huruf dan angka.' });
+        }
+
         // Cek apakah nomor telepon sudah terdaftar
         const existing = await Pelanggan.findOne({ where: { NO_HP: NO_HP } });
 
@@ -254,6 +261,23 @@ router.post('/staff-login', async (req, res) => {
             { expiresIn: '24h' }
         );
 
+        // Catat log login staff ke database tabel logaktivitas
+        try {
+            const { LogAktivitas } = require('../models');
+            if (LogAktivitas) {
+                await LogAktivitas.create({
+                    id_pegawai: pegawai.ID_PEGAWAI,
+                    USERNAME: pegawai.USERNAME,
+                    activity: 'Staff Login',
+                    content: `Melakukan login ke sistem dengan peran "${validRole}"`,
+                    datetime: new Date()
+                });
+                console.log(`🌱 [LOG AKTIVITAS] Staff Login dicatat untuk ${pegawai.USERNAME}`);
+            }
+        } catch (logErr) {
+            console.error('Gagal mencatat log login staff:', logErr.message);
+        }
+
         res.json({
             message: `Login berhasil sebagai ${pegawai.NAMA} (${validRole})`,
             token,
@@ -390,6 +414,43 @@ router.post('/save-fcm-token', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('Error saving FCM token:', err);
         res.status(500).json({ message: 'Gagal menyimpan token FCM.', error: err.message });
+    }
+});
+
+// ============================================
+// POST /api/auth/forgot-password
+// Reset password pelanggan menggunakan NO_HP
+// ============================================
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { NO_HP, NEW_PASSWORD } = req.body;
+
+        if (!NO_HP || !NEW_PASSWORD) {
+            return res.status(400).json({ message: 'Nomor HP dan Password baru wajib diisi.' });
+        }
+
+        // Cari pelanggan dengan NO_HP
+        const pelanggan = await Pelanggan.findOne({
+            where: {
+                NO_HP: NO_HP
+            }
+        });
+
+        if (!pelanggan) {
+            return res.status(404).json({ message: 'Nomor handphone tidak ditemukan.' });
+        }
+
+        // Hash password baru dengan bcryptjs
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(NEW_PASSWORD, salt);
+
+        // Update password
+        await pelanggan.update({ PASSWORD: hashedPassword });
+
+        res.json({ message: 'Password berhasil diubah. Silakan login kembali.' });
+    } catch (err) {
+        console.error('Error reset password:', err);
+        res.status(500).json({ message: 'Gagal mengatur ulang password.', error: err.message });
     }
 });
 

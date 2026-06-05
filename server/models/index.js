@@ -8,6 +8,7 @@ const Aduan = require('./Aduan');
 const Ticket = require('./Ticket');
 const Reschedule = require('./Reschedule');
 const Notifikasi = require('./Notifikasi');
+const LogAktivitas = require('./LogAktivitas');
 
 // Definisikan Relasi
 Pelanggan.belongsTo(Paket, { foreignKey: 'ID_PAKET' });
@@ -41,6 +42,10 @@ Reschedule.belongsTo(Pegawai, { foreignKey: 'ID_PEGAWAI' });
 Notifikasi.belongsTo(Pelanggan, { foreignKey: 'ID_PELANGGAN' });
 Pelanggan.hasMany(Notifikasi, { foreignKey: 'ID_PELANGGAN' });
 
+// Relasi LogAktivitas
+LogAktivitas.belongsTo(Pegawai, { foreignKey: 'id_pegawai' });
+Pegawai.hasMany(LogAktivitas, { foreignKey: 'id_pegawai' });
+
 module.exports = {
     sequelize,
     Pelanggan,
@@ -51,5 +56,6 @@ module.exports = {
     Aduan,
     Ticket,
     Reschedule,
-    Notifikasi
+    Notifikasi,
+    LogAktivitas
 };

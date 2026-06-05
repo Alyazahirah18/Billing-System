@@ -35,6 +35,9 @@ const AdminManajemenLayanan = ({ user }) => {
             }
         };
         fetchLayananData();
+        // Logika agar notifikasi manajemen layanan ditandai sudah dibaca saat admin membuka halaman ini
+        localStorage.setItem('adminLastOpenedLayanan', new Date().toISOString());
+        window.dispatchEvent(new CustomEvent('refetchSidebarBadges'));
     }, []);
 
     return (
