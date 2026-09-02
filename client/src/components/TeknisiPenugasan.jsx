@@ -26,7 +26,7 @@ const TeknisiPenugasan = ({ user }) => {
     const fetchPenugasan = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/teknisi/penugasan', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/teknisi/penugasan`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setData(res.data);
@@ -62,7 +62,7 @@ const TeknisiPenugasan = ({ user }) => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:5000/api/dashboard/teknisi/penugasan/${selectedItem.id_ticket}`,
+            await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/teknisi/penugasan/${selectedItem.id_ticket}`,
                 { status: newStatus, notes_teknisi: notesTeknisi },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

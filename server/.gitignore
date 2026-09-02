@@ -1,0 +1,33 @@
+# ========================
+# SERVER GITIGNORE
+# ========================
+
+# Dependencies
+node_modules/
+
+# Environment variables - CREDENTIAL SENSITIF!
+.env
+.env.*
+!.env.example
+
+# Firebase Service Account - SANGAT SENSITIF!
+config/serviceAccountKey.json
+config/*.json
+!config/serviceAccountKey.example.json
+
+# Upload folder (file user)
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build
+dist/
+build/
+
+# ZIP
+*.zip

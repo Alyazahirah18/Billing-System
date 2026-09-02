@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children, user, setUser }) => {
 
             try {
                 // Verifikasi token ke server
-                const res = await axios.get('http://localhost:5000/api/auth/me', {
+                const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 

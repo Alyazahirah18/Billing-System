@@ -1,0 +1,19 @@
+# ========================
+# ROOT-LEVEL GITIGNORE
+# ========================
+
+# ZIP files (tidak perlu di-push)
+*.zip
+
+# Environment variables - JANGAN PERNAH DI-PUSH!
+.env
+.env.*
+!.env.example
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

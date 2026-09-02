@@ -17,12 +17,12 @@ try {
     console.error('Error loading models in dashboardRoutes:', err.message);
 }
 
-// Helper untuk mencatat log aktivitas staff (admin & teknisi) ke database tabel logaktivitas
+// Helper untuk mencatat log aktivitas staff
 const logStaffActivity = async (req, activity, content) => {
     try {
         if (!LogAktivitas || !Pegawai) return;
 
-        // Cegah mencatat aktivitas jika pengguna adalah owner
+        // pengecualian owner
         if (req.user && req.user.role === 'owner') {
             return;
         }
@@ -45,9 +45,9 @@ const logStaffActivity = async (req, activity, content) => {
             content: content,
             datetime: new Date()
         });
-        console.log(`🌱 [LOG AKTIVITAS] Berhasil disimpan: [${username}] ${activity} - ${content}`);
+        console.log(`[LOG AKTIVITAS] Berhasil disimpan: [${username}] ${activity} - ${content}`);
     } catch (e) {
-        console.error('⚠️ Gagal mencatat log aktivitas staff:', e.message);
+        console.error('Gagal mencatat log aktivitas staff:', e.message);
     }
 };
 
@@ -165,7 +165,7 @@ router.get('/summary', verifyToken, async (req, res) => {
                 console.error('Error calculating overdue status for summary:', e);
             }
 
-            // Sync ke kolom STATUS_LAYANAN di database agar tersimpan permanen & konsisten
+            // Sync ke kolom STATUS_LAYANAN di database
             if (statusLayanan === 'BLOKIR' && pelanggan.STATUS_LAYANAN !== 'blokir') {
                 await pelanggan.update({ STATUS_LAYANAN: 'blokir' });
             } else if ((statusLayanan === 'AKTIF' || statusLayanan === 'JATUH TEMPO') && pelanggan.STATUS_LAYANAN === 'blokir') {
@@ -185,7 +185,7 @@ router.get('/summary', verifyToken, async (req, res) => {
             try {
                 const latestTagihan = await Tagihan.findOne({
                     where: { ID_PELANGGAN: id_pelanggan, ID_TRANSAKSI: { [require('sequelize').Op.notLike]: 'UPG-%' } },
-                    order: [['JATUH_TEMPO', 'DESC']]
+                    order: [['JATUH_TEMPO', 'DESC']] //terbaru
                 });
 
                 let targetJatuhTempoDate;
@@ -208,7 +208,8 @@ router.get('/summary', verifyToken, async (req, res) => {
                 jatuhTempo = targetJatuhTempoDate.toLocaleDateString('id-ID', {
                     day: 'numeric',
                     month: 'long',
-                    year: 'numeric'
+                    year: 'numeric',
+                    timeZone: 'UTC'
                 });
             } catch (e) {
                 console.error('Error calculating jatuh tempo:', e);
@@ -276,8 +277,8 @@ router.get('/summary', verifyToken, async (req, res) => {
 });
 
 // ============================================
-// GET /api/dashboard/test
-// Endpoint test untuk cek koneksi
+// GET /api/dashboard/test (deadcode gadipanggil di frontend)
+// Endpoint test untuk memastikan bahwa API dashboard dapat diakses
 // ============================================
 router.get('/test', verifyToken, async (req, res) => {
     try {
@@ -338,9 +339,12 @@ router.get('/admin/sidebar-notifications', verifyToken, async (req, res) => {
             where: pelangganWhere
         });
 
-        // 3. Manajemen Layanan: aduan aktif (non-selesai), upgrade pending, reschedule pending
+        // 3. Manajemen Layanan: aduan pending, upgrade pending, reschedule pending
         const { lastOpenedLayanan } = req.query;
-        let aduanWhere = { STATUS_ADUAN: { [Op.ne]: 'selesai' } };
+        let aduanWhere = {
+            STATUS_ADUAN: { [Op.ne]: 'selesai' },
+            SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' }
+        };
         let upgradeWhere = { STATUS_UPGRADE: 'pending' };
         let rescheduleWhere = { STATUS_RESCHEDULE: 'pending' };
 
@@ -348,13 +352,12 @@ router.get('/admin/sidebar-notifications', verifyToken, async (req, res) => {
             const lastViewedDate = new Date(lastOpenedLayanan);
             aduanWhere.TANGGAL_ADUAN = { [Op.gt]: lastViewedDate };
             upgradeWhere.TANGGAL_REQUEST = { [Op.gt]: lastViewedDate };
-            // Reschedule does not have timestamp, clear it once viewed
-            rescheduleWhere.ID_RESCHEDULE = { [Op.eq]: -1 };
+            rescheduleWhere.ID_RESCHEDULE = { [Op.eq]: -1 }; //gaada timestamp
         }
 
         const aduanCount = await Aduan.count({ where: aduanWhere });
 
-        // Saring pengajuan upgrade yang sudah disetujui (memiliki tagihan upgrade UPG- yang belum lunas)
+        // Saring pengajuan upgrade yg blm dibayar gamasuk
         const rawUpgrades = await UpgradeLayanan.findAll({ where: upgradeWhere });
         const pendingUpgradeBillsCount = await Tagihan.findAll({
             where: {
@@ -377,7 +380,7 @@ router.get('/admin/sidebar-notifications', verifyToken, async (req, res) => {
         const rescheduleCount = await Reschedule.count({ where: rescheduleWhere });
         const layananCount = aduanCount + upgradeCount + rescheduleCount;
 
-        // 4. Manajemen E-ticketing: aduan status proses yang belum ada tiketnya
+        // 4. Manajemen E-ticketing
         const { lastOpenedEticketing } = req.query;
         let eticketWhere = { STATUS_ADUAN: 'proses' };
         if (lastOpenedEticketing && !isNaN(Date.parse(lastOpenedEticketing))) {
@@ -417,14 +420,14 @@ router.get('/admin', verifyToken, async (req, res) => {
         const { Op } = require('sequelize');
         const today = new Date();
 
-        // Batas awal bulan berjalan (pukul 00:00:00)
+        // Batas awal bulan berjalan
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        // Batas akhir hari ini (pukul 23:59:59.999)
+        // Batas akhir hari ini
         const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
 
-        // 1. Card Jumlah Pelanggan: Akumulasi pelanggan bulan berjalan, berstatus 'aktif' (calon pelanggan tidak dihitung)
+        // 1. Card Jumlah Pelanggan
         const jumlahPelanggan = await Pelanggan.count({
             where: {
                 STATUS_PELANGGAN: 'aktif',
@@ -432,7 +435,7 @@ router.get('/admin', verifyToken, async (req, res) => {
             }
         });
 
-        // 2. Card Jatuh Tempo: Diambil dari tabel tagihan kolom jatuh_tempo. Menampilkan data pelanggan yang sedang jatuh tempo di bulan berjalan dan belum membayar tagihannya.
+        // 2. Card Jatuh Tempo
         const tagihanJatuhTempo = await Tagihan.findAll({
             attributes: ['ID_PELANGGAN'],
             where: {
@@ -443,11 +446,11 @@ router.get('/admin', verifyToken, async (req, res) => {
             }
         });
 
-        // Hitung unik pelanggan yang jatuh tempo
+        // Hitung pelanggan yang jatuh tempo
         const idPelangganJatuhTempo = [...new Set(tagihanJatuhTempo.map(t => t.ID_PELANGGAN))];
         const jatuhTempo = idPelangganJatuhTempo.length;
 
-        // 3. Card Blokir: Diambil dari tabel pelanggan kolom status_layanan. Menampilkan pelanggan aktif bulan berjalan yang berstatus 'blokir' karena melewati jatuh tempo dan belum membayar.
+        // 3. Card Blokir
         const blokir = await Pelanggan.count({
             where: {
                 STATUS_PELANGGAN: 'aktif',
@@ -456,7 +459,7 @@ router.get('/admin', verifyToken, async (req, res) => {
             }
         });
 
-        // 4. Card Aktif: Pelanggan aktif bulan berjalan yang berstatus 'aktif' pada kolom status_layanan (sudah membayar tagihan pada periode berjalan)
+        // 4. Card Aktif
         const aktif = await Pelanggan.count({
             where: {
                 STATUS_PELANGGAN: 'aktif',
@@ -465,7 +468,7 @@ router.get('/admin', verifyToken, async (req, res) => {
             }
         });
 
-        // 5. Pelanggan Terbaru (5 data terakhir di bulan berjalan s/d hari ini)
+        // 5. Pelanggan Terbaru
         const pelangganTerbaruData = await Pelanggan.findAll({
             where: {
                 STATUS_PELANGGAN: 'aktif',
@@ -527,7 +530,7 @@ router.get('/owner', verifyToken, async (req, res) => {
             where: { STATUS_PELANGGAN: 'aktif' }
         });
 
-        // 2. Disconnect (Pelanggan aktif yang terblokir layanannya)
+        // 2. Disconnect 
         const disconnect = await Pelanggan.count({
             where: {
                 STATUS_PELANGGAN: 'aktif',
@@ -535,7 +538,7 @@ router.get('/owner', verifyToken, async (req, res) => {
             }
         });
 
-        // 3. Total Aduan (Hanya pada bulan yang sedang berjalan s/d hari ini)
+        // 3. Total Aduan 
         const today = new Date();
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         startOfMonth.setHours(0, 0, 0, 0);
@@ -545,7 +548,8 @@ router.get('/owner', verifyToken, async (req, res) => {
             where: {
                 TANGGAL_ADUAN: {
                     [Op.between]: [startOfMonth, endOfToday]
-                }
+                },
+                SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' }
             }
         });
 
@@ -564,7 +568,7 @@ router.get('/owner', verifyToken, async (req, res) => {
         });
         const totalIncome = parseFloat(incomeResult?.totalIncome || 0);
 
-        // 5. Ambil data tren pelanggan (pelanggan mulai berlangganan per bulan)
+        // 5. Ambil data tren pelanggan
         const pelangganAktif = await Pelanggan.findAll({
             where: { STATUS_PELANGGAN: 'aktif' },
             attributes: ['TANGGAL_AKTIVASI', 'ALAMAT_WILAYAH']
@@ -716,7 +720,14 @@ router.get('/owner/laporan', verifyToken, async (req, res) => {
             };
 
             if (startDate && endDate) {
-                queryOptions.where = { TANGGAL_ADUAN: dateFilter };
+                queryOptions.where = {
+                    TANGGAL_ADUAN: dateFilter,
+                    SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' }
+                };
+            } else {
+                queryOptions.where = {
+                    SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' }
+                };
             }
 
             const results = await Aduan.findAll(queryOptions);
@@ -761,10 +772,10 @@ router.get('/admin/layanan', verifyToken, async (req, res) => {
         const { sequelize, UpgradeLayanan, Tagihan } = require('../models');
         const { Op } = require('sequelize');
 
-        const [aduanResult] = await sequelize.query("SELECT COUNT(*) as total FROM aduan WHERE STATUS_ADUAN IN ('pending', 'proses')");
+        const [aduanResult] = await sequelize.query("SELECT COUNT(*) as total FROM aduan WHERE STATUS_ADUAN IN ('pending', 'proses', 'pengajuan ulang') AND SUBJEK != 'Instalasi Pemasangan'");
         const [rescheduleResult] = await sequelize.query("SELECT COUNT(*) as total FROM reschedule WHERE STATUS_RESCHEDULE = 'pending'");
 
-        // Saring pengajuan upgrade yang sudah disetujui (memiliki tagihan upgrade UPG- yang belum lunas)
+        // saring yg blm byr
         const rawUpgrades = await UpgradeLayanan.findAll({ where: { STATUS_UPGRADE: 'pending' } });
         const pendingUpgradeBillsCount = await Tagihan.findAll({
             where: {
@@ -897,7 +908,7 @@ router.post('/admin/layanan/upgrade/confirm', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Paket baru tidak ditemukan.' });
         }
 
-        // Tentukan apakah ini upgrade atau downgrade berdasarkan harga paket
+        // menentukan upgrade / downgrade
         const isUpgrade = paketBaru.HARGA_PAKET > (paketLama ? paketLama.HARGA_PAKET : 0);
 
         // ==========================================
@@ -964,13 +975,15 @@ router.get('/admin/layanan/aduan', verifyToken, async (req, res) => {
         const { Op } = require('sequelize');
 
         // Total aduan (semua aduan yang masuk)
-        const total = await Aduan.count();
-        const pending = await Aduan.count({ where: { STATUS_ADUAN: 'pending' } });
-        const proses = await Aduan.count({ where: { STATUS_ADUAN: 'proses' } });
-        const selesai = await Aduan.count({ where: { STATUS_ADUAN: 'selesai' } });
+        const total = await Aduan.count({ where: { SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' } } });
+        const pending = await Aduan.count({ where: { STATUS_ADUAN: 'pending', SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' } } });
+        const proses = await Aduan.count({ where: { STATUS_ADUAN: 'proses', SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' } } });
+        const selesai = await Aduan.count({ where: { STATUS_ADUAN: 'selesai', SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' } } });
+        const pengajuanUlang = await Aduan.count({ where: { STATUS_ADUAN: 'pengajuan ulang', SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' } } });
 
         // Ambil semua data aduan agar dapat difilter di sisi client (termasuk yang 'selesai')
         const dataAduan = await Aduan.findAll({
+            where: { SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' } },
             include: [
                 {
                     model: Pelanggan,
@@ -996,7 +1009,7 @@ router.get('/admin/layanan/aduan', verifyToken, async (req, res) => {
         }));
 
         res.json({
-            stats: { total, pending, proses, selesai },
+            stats: { total, pending, proses, selesai, pengajuanUlang },
             data: formattedData
         });
     } catch (err) {
@@ -1023,6 +1036,12 @@ router.post('/admin/layanan/aduan/update', verifyToken, async (req, res) => {
         }
 
         await aduan.update({ STATUS_ADUAN: status });
+
+        // Jika status diubah kembali menjadi menunggu perbaikan krn pengajuan ulang
+        // hapus tiket lama agar admin dapat menjadwalkannya ulang.
+        if (status === 'proses') {
+            await Ticket.destroy({ where: { ID_ADUAN: id_aduan } });
+        }
 
         // Buat Notifikasi jika selesai
         if (status === 'selesai') {
@@ -1162,11 +1181,14 @@ router.post('/admin/layanan/eticketing', verifyToken, async (req, res) => {
 
         // Buat Notifikasi untuk Pelanggan
         const { Notifikasi } = require('../models');
+        const isInstalasi = aduan.SUBJEK === 'Instalasi Pemasangan';
         await Notifikasi.create({
             ID_PELANGGAN: aduan.ID_PELANGGAN,
             RELATED_ID: newTicket.ID_TICKET,
-            JUDUL: 'Jadwal Perbaikan Layanan',
-            DESKRIPSI_PESAN: `Jadwal perbaikan untuk aduan "${aduan.SUBJEK}" telah ditetapkan pada ${tanggal} pukul ${waktu}.`,
+            JUDUL: isInstalasi ? 'Jadwal Pemasangan Layanan' : 'Jadwal Perbaikan Layanan',
+            DESKRIPSI_PESAN: isInstalasi
+                ? `Jadwal instalasi perangkat baru telah ditetapkan pada ${tanggal} pukul ${waktu}.`
+                : `Jadwal perbaikan untuk aduan "${aduan.SUBJEK}" telah ditetapkan pada ${tanggal} pukul ${waktu}.`,
             KATEGORI_NOTIFIKASI: 'jadwal perbaikan',
             TANGGAL_NOTIFIKASI: new Date()
         });
@@ -1418,7 +1440,7 @@ router.get('/teknisi/riwayat', verifyToken, async (req, res) => {
 
 // ============================================
 // GET /api/dashboard/pelanggan/reschedule/riwayat
-// Ambil riwayat penjadwalan ulang milik pelanggan yang sedang login
+// Ambil riwayat penjadwalan ulang milik pelanggan 
 // ============================================
 router.get('/pelanggan/reschedule/riwayat', verifyToken, async (req, res) => {
     try {
@@ -1437,7 +1459,7 @@ router.get('/pelanggan/reschedule/riwayat', verifyToken, async (req, res) => {
             return res.json({ data: [] });
         }
 
-        // Cari ticket yang terkait aduan pelanggan
+        // Cari ticket aduan pelanggan
         const tickets = await Ticket.findAll({
             where: { ID_ADUAN: aduanIds },
             attributes: ['ID_TICKET']
@@ -1851,7 +1873,7 @@ router.put('/admin/layanan/eticketing/:id', verifyToken, async (req, res) => {
 
 // ============================================
 // GET /api/dashboard/pelanggan/tagihan-aktif
-// Mendapatkan tagihan aktif dan melakukan auto-generate jika diperlukan
+// Mendapatkan tagihan aktif dan melakukan auto-generate
 // ============================================
 router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
     try {
@@ -1882,9 +1904,13 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
             });
         }
 
+        // 2. SISTEM AUTO GENERATE TAGIHAN PELANGGAN
+        const today = new Date();
+        const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+        const todayDate = new Date(todayUTC);
+
         // 1.5 PEMBERSIHAN TAGIHAN PREMATUR (BELUM MASUK H-10)
         try {
-            const { Op } = require('sequelize');
             const prematurTagihans = await Tagihan.findAll({
                 where: {
                     ID_PELANGGAN: pelanggan.ID_PELANGGAN,
@@ -1899,22 +1925,14 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
                 triggerDate.setUTCDate(triggerDate.getUTCDate() - 10);
                 triggerDate.setHours(0, 0, 0, 0);
 
-                const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-                const todayDate = new Date(todayUTC);
-
                 if (todayDate < triggerDate) {
-                    console.log(`🧹 Menghapus tagihan prematur ${t.ID_TRANSAKSI} karena belum memasuki H-10.`);
+                    console.log(`Menghapus tagihan prematur ${t.ID_TRANSAKSI} karena belum memasuki H-10.`);
                     await t.destroy();
                 }
             }
         } catch (purgeErr) {
             console.error("Gagal membersihkan tagihan prematur:", purgeErr);
         }
-
-        // 2. SISTEM AUTO GENERATE TAGIHAN PELANGGAN
-        const today = new Date();
-        const todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-        const todayDate = new Date(todayUTC);
 
         const aktivasi = new Date(pelanggan.TANGGAL_AKTIVASI);
         const tanggalAktivasi = aktivasi.getUTCDate();
@@ -1933,18 +1951,17 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
         }
 
         for (const cycle of targetCycles) {
-            // Gunakan UTC Date untuk memastikan kekebalan dari perbedaan zona waktu server
+            // Gunakan UTC Date untuk menghindari perbedaan zona waktu server
             const anniversaryDate = new Date(Date.UTC(cycle.year, cycle.month, tanggalAktivasi));
 
             // Jatuh tempo adalah tepat pada tanggal anniversary (tanggal aktivasi di periode/bulan berikutnya)
             const jatuhTempo = new Date(anniversaryDate);
 
-            // Pembayaran diperbolehkan mulai 10 hari sebelum jatuh tempo
-            // Ini juga waktu di mana sistem auto-generate tagihan baru!
+            // sistem auto-generate tagihan baru
             const triggerDate = new Date(jatuhTempo);
             triggerDate.setUTCDate(triggerDate.getUTCDate() - 10);
 
-            // Skip jika siklus ini terjadi sebelum atau sama dengan tanggal aktivasi asli
+            // Skip jika siklus ini terjadi sebelum atau sama dengan tanggal aktivasi
             if (anniversaryDate <= aktivasi) {
                 continue;
             }
@@ -1984,8 +2001,7 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
         }
 
         // 3. AMBIL TAGIHAN TERBARU UNTUK DITAMPILKAN
-        // Ambil semua tagihan diurutkan dari yang terbaru
-        const tagihanList = await Tagihan.findAll({
+        let tagihanList = await Tagihan.findAll({
             where: { ID_PELANGGAN: pelangganId },
             order: [
                 ['TAHUN_TAGIHAN', 'DESC'],
@@ -2007,8 +2023,7 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
             });
         }
 
-        // Cek jika sudah ada tagihan UPG- yang dibayar (berhasil),
-        // hapus semua tagihan UPG- ganda yang masih 'menunggu_verifikasi' dari database
+        // Cek jika sudah ada tagihan UPG- yang dibayar 
         const paidUpgBill = tagihanList.find(t => t.STATUS_PEMBAYARAN === 'berhasil' && t.ID_TRANSAKSI && t.ID_TRANSAKSI.startsWith('UPG-'));
         if (paidUpgBill) {
             const obsoleteUpgs = tagihanList.filter(t => t.STATUS_PEMBAYARAN !== 'berhasil' && t.ID_TRANSAKSI && t.ID_TRANSAKSI.startsWith('UPG-'));
@@ -2053,12 +2068,10 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
                         PAYMENT_TIME: statusResponse.settlement_time ? new Date(statusResponse.settlement_time) : new Date()
                     });
 
-                    // Lakukan trigger success logic (hapus TAG- masa depan, notif, dll)
+                    // Lakukan trigger success logic
                     const axios = require('axios');
-                    // Karena kita butuh update Pelanggan dan Notifikasi, panggil internal logic yang ada di paymentRoutes.js
-                    // Lebih aman, biarkan sistem paymentRoutes /success yang menanganinya, atau cukup update status bill
-                    // Namun karena kita harus panggil logic khusus upgrade, kita jalankan manual:
 
+                    // Karena kita butuh update Pelanggan dan Notifikasi, panggil internal logic yang ada di paymentRoutes.js
                     if (activeBill.ID_TRANSAKSI.startsWith('UPG-')) {
                         const parts = activeBill.ID_TRANSAKSI.split('-');
                         const id_upgrade = parts[1];
@@ -2078,7 +2091,7 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
                                 }
                             });
 
-                            // Hapus tagihan UPG- lain yang mungkin ganda atau kadaluwarsa
+                            // Hapus tagihan UPG- lain yang mungkin double atau kadaluwarsa
                             await Tagihan.destroy({
                                 where: {
                                     ID_PELANGGAN: pelanggan.ID_PELANGGAN,
@@ -2098,7 +2111,20 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
                         }
                     } else {
                         // Regular tagihan
+                        const wasCalon = pelanggan.STATUS_PELANGGAN === 'calon';
                         await pelanggan.update({ STATUS_PELANGGAN: 'aktif', STATUS_LAYANAN: 'aktif' });
+
+                        if (wasCalon) {
+                            const { Aduan } = require('../models');
+                            await Aduan.create({
+                                ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                                SUBJEK: 'Instalasi Pemasangan',
+                                DESKRIPSI_MASALAH: 'Pemasangan perangkat baru setelah aktivasi pelanggan.',
+                                STATUS_ADUAN: 'proses',
+                                TANGGAL_ADUAN: new Date()
+                            });
+                        }
+
                         const { Notifikasi } = require('../models');
                         await Notifikasi.create({
                             ID_PELANGGAN: pelanggan.ID_PELANGGAN,
@@ -2110,7 +2136,6 @@ router.get('/pelanggan/tagihan-aktif', verifyToken, async (req, res) => {
                     }
                 }
             } catch (midtransError) {
-                // Abaikan jika tidak ditemukan di midtrans (mungkin belum dibayar sama sekali)
             }
         }
 
@@ -2188,7 +2213,7 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
                 triggerDate.setHours(0, 0, 0, 0);
 
                 if (todayDate < triggerDate) {
-                    console.log(`🧹 Menghapus tagihan prematur ${t.ID_TRANSAKSI} karena belum memasuki H-10.`);
+                    console.log(`Menghapus tagihan prematur ${t.ID_TRANSAKSI} karena belum memasuki H-10.`);
                     await t.destroy();
                 }
             }
@@ -2196,7 +2221,6 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
             console.error("Gagal membersihkan tagihan prematur secara global:", purgeErr);
         }
 
-        // 1. Ambil semua pelanggan aktif beserta Paket dan Tagihan mereka
         const pelangganList = await Pelanggan.findAll({
             where: { STATUS_PELANGGAN: 'aktif' },
             include: [
@@ -2205,8 +2229,6 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
             ]
         });
 
-        // 2. Hitung statistik yang diperlukan
-        // total tagihan = jumlah tagihan pelanggan yang sudah bisa dibayar
         const totalTagihan = await Tagihan.count();
 
         // tagihan pending = tagihan yang sudah memasuki waktu jatuh tempo dan belum dibayar
@@ -2217,7 +2239,7 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
             }
         });
 
-        // tagihan terbayar = jumlah tagihan yang sudah sukses terbayar
+        // tagihan terbayar
         const tagihanTerbayar = await Tagihan.count({
             where: { STATUS_PEMBAYARAN: 'berhasil' }
         });
@@ -2226,10 +2248,10 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
         const formattedCustomers = pelangganList.map(p => {
             const tagihans = p.Tagihans || [];
 
-            // Cari tagihan yang belum dibayar (status_pembayaran != 'berhasil')
+            // Cari tagihan yang belum dibayar
             const unpaidBills = tagihans.filter(t => t.STATUS_PEMBAYARAN !== 'berhasil');
 
-            // Tentukan status tampilan di UI berdasarkan aturan H-7 dan H+7
+            // Tentukan status tampilan
             let displayStatus = 'AKTIF';
             if (p.STATUS_LAYANAN === 'blokir') {
                 displayStatus = 'BLOCKIR';
@@ -2237,7 +2259,7 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
                 // Cari tagihan reguler terlama yang belum dibayar
                 const regularUnpaidBills = unpaidBills.filter(t => !t.ID_TRANSAKSI || !t.ID_TRANSAKSI.startsWith('UPG-'));
                 if (regularUnpaidBills.length > 0) {
-                    // Urutkan untuk mendapatkan yang paling awal jatuh temponya
+                    // Urutkan jatuh tempo
                     regularUnpaidBills.sort((a, b) => new Date(a.JATUH_TEMPO) - new Date(b.JATUH_TEMPO));
                     const oldestUnpaid = regularUnpaidBills[0];
 
@@ -2255,7 +2277,7 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
                 }
             }
 
-            // Sync ke kolom STATUS_LAYANAN di database agar tersimpan permanen & konsisten
+            // Sync ke kolom STATUS_LAYANAN di database
             if (displayStatus === 'BLOCKIR' && p.STATUS_LAYANAN !== 'blokir') {
                 p.update({ STATUS_LAYANAN: 'blokir' }).catch(err => console.error(err));
                 p.STATUS_LAYANAN = 'blokir';
@@ -2297,7 +2319,8 @@ router.get('/admin/tagihan', verifyToken, async (req, res) => {
                     displayJatuhTempo = targetJatuhTempoDate.toLocaleDateString('id-ID', {
                         day: 'numeric',
                         month: 'long',
-                        year: 'numeric'
+                        year: 'numeric',
+                        timeZone: 'UTC'
                     });
                 } catch (err) {
                     console.error("Error formatting displayJatuhTempo for admin table:", err);
@@ -2410,14 +2433,13 @@ router.get('/owner/logs', verifyToken, async (req, res) => {
             return res.status(500).json({ message: "Model LogAktivitas atau Pegawai tidak tersedia" });
         }
 
-        // Sinkronisasi otomatis tabel logaktivitas ke database MySQL jika belum ada
         await LogAktivitas.sync();
 
-        // 1. Tarik semua pegawai dan semua logs menggunakan raw: true (mencegah bug join Sequelize)
+        // 1. Tarik semua pegawai dan semua logs
         const pegawais = await Pegawai.findAll({ raw: true });
         const logs = await LogAktivitas.findAll({ raw: true, order: [['datetime', 'DESC']] });
 
-        // 2. Buat map index untuk pencarian super cepat & presisi
+        // 2. Buat map index untuk pencarian 
         const idMap = {};
         const usernameMap = {};
 
@@ -2430,16 +2452,15 @@ router.get('/owner/logs', verifyToken, async (req, res) => {
             }
         });
 
-        // 3. Gabungkan data log dengan pegawai di memori secara dinamis & aman
         const formattedLogs = logs
             .map(log => {
                 let matchedPegawai = null;
 
-                // Prioritas 1: Cocokkan berdasarkan ID Pegawai (paling akurat)
+                // Prioritas 1: Cocokkan berdasarkan ID Pegawai
                 if (log.id_pegawai && idMap[log.id_pegawai]) {
                     matchedPegawai = idMap[log.id_pegawai];
                 }
-                // Prioritas 2: Cocokkan berdasarkan USERNAME (case-insensitive & trim)
+                // Prioritas 2: Cocokkan berdasarkan USERNAME
                 else if (log.USERNAME) {
                     const cleanUser = log.USERNAME.toLowerCase().trim();
                     if (usernameMap[cleanUser]) {
@@ -2447,12 +2468,12 @@ router.get('/owner/logs', verifyToken, async (req, res) => {
                     }
                 }
 
-                // Resolusi role dengan membersihkan spasi CHAR(20)
+                // Resolusi role
                 const role = matchedPegawai && matchedPegawai.ROLE
                     ? matchedPegawai.ROLE.toLowerCase().trim()
                     : 'staff';
 
-                // Gunakan username resmi dari database pegawai atau fallback ke log.USERNAME
+                // username
                 const displayUsername = matchedPegawai && matchedPegawai.USERNAME
                     ? matchedPegawai.USERNAME
                     : log.USERNAME;
@@ -2462,11 +2483,11 @@ router.get('/owner/logs', verifyToken, async (req, res) => {
                     level: role,
                     user: displayUsername,
                     activity: log.activity,
-                    context: log.content, // Memetakan kolom 'content' database ke attribute 'context' frontend
+                    context: log.content,
                     datetime: log.datetime
                 };
             })
-            // Saring agar HANYA mengembalikan role admin & teknisi
+            // Filter role admin & teknisi
             .filter(log => ['admin', 'teknisi'].includes(log.level));
 
         res.json(formattedLogs);

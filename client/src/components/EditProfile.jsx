@@ -25,18 +25,18 @@ const EditProfile = ({ user, setUser }) => {
                 const token = localStorage.getItem('token');
                 
                 // Fetch current profile details
-                const meRes = await axios.get('http://localhost:5000/api/auth/me', {
+                const meRes = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const userData = meRes.data.user;
 
                 // Fetch current active service package from dashboard summary
-                const summaryRes = await axios.get('http://localhost:5000/api/dashboard/summary', {
+                const summaryRes = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/summary`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 
                 // Fetch list of areas (wilayah)
-                const wilayahRes = await axios.get('http://localhost:5000/api/auth/wilayah');
+                const wilayahRes = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/wilayah`);
 
                 setFormData({
                     nama: userData.nama || '',
@@ -91,7 +91,7 @@ const EditProfile = ({ user, setUser }) => {
         setSaving(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.put('http://localhost:5000/api/pelanggan/profile', {
+            const res = await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/pelanggan/profile`, {
                 nama: formData.nama,
                 NO_HP: formData.NO_HP,
                 alamat: formData.alamat,

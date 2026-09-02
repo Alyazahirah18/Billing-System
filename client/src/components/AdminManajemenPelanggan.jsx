@@ -42,7 +42,7 @@ const AdminManajemenPelanggan = ({ user }) => {
     const fetchPelanggan = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/pelanggan/admin/list', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/pelanggan/admin/list`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPelanggan(res.data);
@@ -53,7 +53,7 @@ const AdminManajemenPelanggan = ({ user }) => {
 
     const fetchPaket = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/paket');
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/paket`);
             setPaketList(res.data);
         } catch (err) {
             console.error("Gagal mengambil data paket", err);
@@ -65,7 +65,7 @@ const AdminManajemenPelanggan = ({ user }) => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`http://localhost:5000/api/pelanggan/admin/${id}`, {
+            await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/pelanggan/admin/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             alert('Pelanggan berhasil dihapus.');
@@ -95,7 +95,7 @@ const AdminManajemenPelanggan = ({ user }) => {
     const handleSaveEdit = async () => {
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:5000/api/pelanggan/admin/${editData.id}`, {
+            await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/pelanggan/admin/${editData.id}`, {
                 KODE_PELANGGAN: editData.kode_user,
                 ID_PAKET: editData.id_paket
             }, {

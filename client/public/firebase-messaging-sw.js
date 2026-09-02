@@ -18,7 +18,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-    // Tampilkan semua push notification yang masuk (termasuk jatuh tempo)
+    // Tampilkan push notification
     const notificationTitle = payload.notification?.title || 'Notifikasi Baru';
     const notificationOptions = {
         body: payload.notification?.body || 'Anda memiliki notifikasi baru.',
@@ -38,7 +38,7 @@ self.addEventListener('notificationclick', (event) => {
     console.log('[firebase-messaging-sw.js] Notification click received.');
     event.notification.close();
 
-    // Buka halaman notifikasi di tab baru atau fokus tab yang sudah ada
+    // Buka halaman notifikasi di tab 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             // Cari tab yang sudah terbuka

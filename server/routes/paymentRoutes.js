@@ -177,6 +177,7 @@ router.post('/pay-bill', verifyToken, async (req, res) => {
 router.post('/success', verifyToken, async (req, res) => {
     try {
         const { order_id, id_paket } = req.body;
+        const { Aduan } = require('../models');
 
         if (!order_id) {
             return res.status(400).json({ message: 'Order ID wajib diisi.' });
@@ -204,7 +205,6 @@ router.post('/success', verifyToken, async (req, res) => {
             }
         } catch (midtransError) {
             console.error('Midtrans status check error:', midtransError);
-            // Tetap lanjutkan meski gagal cek ke midtrans (mungkin sandbox error)
         }
 
         // Update Tagihan
@@ -233,7 +233,6 @@ router.post('/success', verifyToken, async (req, res) => {
                     const { Op } = require('sequelize');
 
                     // Hapus tagihan bulanan reguler (TAG-) di masa mendatang yang belum dibayar.
-                    // Hal ini memastikan setelah bayar upgrade, pelanggan tidak bingung melihat tagihan reguler yang pending.
                     const todayDateOnly = new Date();
                     todayDateOnly.setHours(0, 0, 0, 0);
 
@@ -267,18 +266,40 @@ router.post('/success', verifyToken, async (req, res) => {
                     });
                 } else {
                     // Fallback jika record tidak ditemukan
+                    const wasCalon = pelanggan.STATUS_PELANGGAN === 'calon';
                     await pelanggan.update({
                         STATUS_PELANGGAN: 'aktif',
                         STATUS_LAYANAN: 'aktif'
                     });
+
+                    if (wasCalon) {
+                        await Aduan.create({
+                            ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                            SUBJEK: 'Instalasi Pemasangan',
+                            DESKRIPSI_MASALAH: 'Pemasangan perangkat baru setelah aktivasi pelanggan.',
+                            STATUS_ADUAN: 'proses',
+                            TANGGAL_ADUAN: new Date()
+                        });
+                    }
                 }
             } else {
                 // Pembayaran tagihan reguler
+                const wasCalon = pelanggan.STATUS_PELANGGAN === 'calon';
                 await pelanggan.update({
                     STATUS_PELANGGAN: 'aktif',
                     STATUS_LAYANAN: 'aktif',
                     ID_PAKET: id_paket || pelanggan.ID_PAKET
                 });
+
+                if (wasCalon) {
+                    await Aduan.create({
+                        ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                        SUBJEK: 'Instalasi Pemasangan',
+                        DESKRIPSI_MASALAH: 'Pemasangan perangkat baru setelah aktivasi pelanggan.',
+                        STATUS_ADUAN: 'proses',
+                        TANGGAL_ADUAN: new Date()
+                    });
+                }
 
                 // Buat Notifikasi reguler
                 const { Notifikasi } = require('../models');

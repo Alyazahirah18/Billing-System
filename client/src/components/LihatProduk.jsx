@@ -9,7 +9,7 @@ const LihatProduk = ({ user }) => {
     useEffect(() => {
         const fetchPaket = async () => {
             try {
-                const res = await axios.get('http://localhost:5000/api/paket');
+                const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/paket`);
                 setPaket(res.data);
                 setLoading(false);
             } catch (err) {

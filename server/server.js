@@ -205,7 +205,8 @@ app.listen(PORT, () => {
                         const tanggalJTFormatted = jatuhTempo.toLocaleDateString('id-ID', {
                             day: 'numeric',
                             month: 'long',
-                            year: 'numeric'
+                            year: 'numeric',
+                            timeZone: 'UTC'
                         });
 
                         const sisaHariText = diffInDays === 0
@@ -279,9 +280,9 @@ app.listen(PORT, () => {
                 }
             }
 
-            console.log(`✅ Selesai mengecek jatuh tempo.\n`);
+            console.log(` Selesai mengecek jatuh tempo.\n`);
         } catch (error) {
-            console.error("❌ Error pada fungsi checkJatuhTempo:", error);
+            console.error(" Error pada fungsi checkJatuhTempo:", error);
         }
     };
 

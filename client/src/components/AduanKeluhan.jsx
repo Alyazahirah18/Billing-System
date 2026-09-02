@@ -13,6 +13,9 @@ const AduanKeluhan = ({ user }) => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
     const [selectedAduan, setSelectedAduan] = useState(null);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [confirmAduanId, setConfirmAduanId] = useState(null);
+    const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
 
     useEffect(() => {
         fetchRiwayat();
@@ -21,7 +24,7 @@ const AduanKeluhan = ({ user }) => {
     const fetchRiwayat = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/aduan/riwayat', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/aduan/riwayat`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setRiwayat(res.data);
@@ -42,13 +45,17 @@ const AduanKeluhan = ({ user }) => {
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!subjek || !deskripsi) {
             alert('Judul dan deskripsi wajib diisi');
             return;
         }
+        setShowSubmitConfirmModal(true);
+    };
 
+    const handleConfirmSubmit = async () => {
+        setShowSubmitConfirmModal(false);
         setLoading(true);
         const formData = new FormData();
         formData.append('subjek', subjek);
@@ -59,7 +66,7 @@ const AduanKeluhan = ({ user }) => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/aduan', formData, {
+            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/aduan`, formData, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -93,20 +100,26 @@ const AduanKeluhan = ({ user }) => {
         setSelectedAduan(null);
     };
 
-    const handleKonfirmasiSelesai = async (idAduan) => {
-        const confirmAction = await window.confirm("Apakah Anda yakin ingin menyatakan bahwa aduan ini telah selesai ditangani?");
-        if (!confirmAction) return;
-
+    const submitKonfirmasi = async (idAduan, status) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`http://localhost:5000/api/aduan/konfirmasi/${idAduan}`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert('Aduan berhasil dikonfirmasi selesai.');
+            if (status === 'selesai') {
+                await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/aduan/konfirmasi/${idAduan}`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Aduan berhasil dikonfirmasi selesai.');
+            } else {
+                await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/aduan/konfirmasi-belum/${idAduan}`, {}, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                alert('Aduan berhasil dikonfirmasi belum selesai ditangani. Status saat ini berubah menjadi Pengajuan Ulang.');
+            }
+            setIsConfirmModalOpen(false);
+            setConfirmAduanId(null);
             fetchRiwayat();
         } catch (err) {
             console.error("Gagal mengonfirmasi aduan", err);
-            alert(err.response?.data?.message || 'Gagal mengonfirmasi aduan selesai');
+            alert(err.response?.data?.message || 'Gagal mengonfirmasi aduan');
         }
     };
 
@@ -211,7 +224,8 @@ const AduanKeluhan = ({ user }) => {
                                                 <div style={styles.cardTitle}>{aduan.SUBJEK}</div>
                                                 <div style={styles.cardStatus}>
                                                     {aduan.STATUS_ADUAN === 'pending' ? 'Pending' :
-                                                        aduan.STATUS_ADUAN === 'proses' ? 'Menunggu Perbaikan' : 'Selesai'}
+                                                        aduan.STATUS_ADUAN === 'proses' ? 'Menunggu Perbaikan' :
+                                                        aduan.STATUS_ADUAN === 'pengajuan ulang' ? 'Pengajuan Ulang' : 'Selesai'}
                                                 </div>
                                                 <div style={styles.cardActions}>
                                                     <span style={styles.lihatDetailText}>Lihat Detail</span>
@@ -231,8 +245,11 @@ const AduanKeluhan = ({ user }) => {
                                                         <button
                                                             type="button"
                                                             style={styles.iconBtn}
-                                                            onClick={() => handleKonfirmasiSelesai(aduan.ID_ADUAN)}
-                                                            title="Konfirmasi Selesai"
+                                                            onClick={() => {
+                                                                setConfirmAduanId(aduan.ID_ADUAN);
+                                                                setIsConfirmModalOpen(true);
+                                                            }}
+                                                            title="Konfirmasi Penanganan"
                                                         >
                                                             {/* Check Circle Icon */}
                                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
@@ -278,7 +295,7 @@ const AduanKeluhan = ({ user }) => {
                             {selectedAduan.FOTO_KENDALA && (
                                 <div style={styles.fotoContainer}>
                                     <p><strong>Foto Bukti:</strong></p>
-                                    <img src={`http://localhost:5000${selectedAduan.FOTO_KENDALA}`} alt="Bukti Kendala" style={styles.fotoBukti} />
+                                    <img src={`${import.meta.env.VITE_BACKEND_URL}${selectedAduan.FOTO_KENDALA}`} alt="Bukti Kendala" style={styles.fotoBukti} />
                                 </div>
                             )}
                         </div>
@@ -314,6 +331,134 @@ const AduanKeluhan = ({ user }) => {
                         </div>
                         <div style={styles.ticketFooter}>
                             <p>Simpan tiket ini untuk melacak status aduan Anda.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirm Complaint Modal */}
+            {isConfirmModalOpen && confirmAduanId && (
+                <div style={styles.modalOverlay} onClick={() => { setIsConfirmModalOpen(false); setConfirmAduanId(null); }}>
+                    <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div style={styles.modalHeader}>
+                            <h3 style={styles.modalTitle}>Konfirmasi Penanganan Aduan</h3>
+                            <button onClick={() => { setIsConfirmModalOpen(false); setConfirmAduanId(null); }} style={styles.closeBtn}>&times;</button>
+                        </div>
+                        <div style={styles.modalBody}>
+                            <p style={{ marginBottom: '20px', fontSize: '15px' }}>
+                                Bagaimana kondisi kendala Anda saat ini? Silakan pilih salah satu opsi di bawah ini untuk mengonfirmasi status aduan Anda.
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <button
+                                    onClick={() => submitKonfirmasi(confirmAduanId, 'selesai')}
+                                    style={{
+                                        padding: '12px',
+                                        backgroundColor: '#2ecc71',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        boxShadow: '0 2px 4px rgba(46,204,113,0.2)',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    Ya, Kendala Sudah Selesai Ditangani
+                                </button>
+                                <button
+                                    onClick={() => submitKonfirmasi(confirmAduanId, 'belum_selesai')}
+                                    style={{
+                                        padding: '12px',
+                                        backgroundColor: '#e74c3c',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontSize: '14px',
+                                        boxShadow: '0 2px 4px rgba(231,76,60,0.2)',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    Belum, Kendala Belum Selesai Ditangani
+                                </button>
+                                <button
+                                    onClick={() => { setIsConfirmModalOpen(false); setConfirmAduanId(null); }}
+                                    style={{
+                                        padding: '10px',
+                                        backgroundColor: '#f5f5f5',
+                                        color: '#333',
+                                        border: '1px solid #ccc',
+                                        borderRadius: '8px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        textAlign: 'center',
+                                        marginTop: '10px'
+                                    }}
+                                >
+                                    Kembali
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Konfirmasi Submit Aduan Modal */}
+            {showSubmitConfirmModal && (
+                <div style={styles.modalOverlay} onClick={() => setShowSubmitConfirmModal(false)}>
+                    <div style={confirmStyles.box} onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
+                        <div style={confirmStyles.header}>
+                            <div style={confirmStyles.headerIcon}>
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                </svg>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={confirmStyles.headerTitle}>Konfirmasi Pengajuan Keluhan</div>
+                                <div style={confirmStyles.headerSubtitle}>Periksa kembali detail keluhan Anda sebelum dikirim</div>
+                            </div>
+                            <button style={confirmStyles.closeBtn} onClick={() => setShowSubmitConfirmModal(false)}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div style={confirmStyles.body}>
+                            <div style={confirmStyles.section}>
+                                <div style={confirmStyles.sectionTitle}>📋 Detail Keluhan</div>
+                                <div style={confirmStyles.row}>
+                                    <span style={confirmStyles.rowKey}>Judul Keluhan</span>
+                                    <span style={{ ...confirmStyles.rowVal, color: '#c0392b', fontWeight: '700' }}>{subjek || '-'}</span>
+                                </div>
+                                <div style={{ ...confirmStyles.row, borderBottom: 'none' }}>
+                                    <span style={confirmStyles.rowKey}>Lampiran Foto</span>
+                                    <span style={confirmStyles.rowVal}>{foto ? foto.name : 'Tidak ada'}</span>
+                                </div>
+                            </div>
+
+                            <div style={confirmStyles.descSection}>
+                                <div style={confirmStyles.sectionTitle}>📝 Deskripsi Keluhan</div>
+                                <div style={confirmStyles.descBox}>{deskripsi}</div>
+                            </div>
+
+                            <div style={confirmStyles.infoBox}>
+                                <span style={{ fontSize: '15px' }}>ℹ️</span>
+                                <span style={{ fontSize: '13px', color: '#c0392b' }}>Keluhan Anda akan dikirim ke tim kami dan akan segera ditindaklanjuti. Anda dapat memantau status keluhan di riwayat keluhan.</span>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={confirmStyles.footer}>
+                            <button style={confirmStyles.btnBatal} onClick={() => setShowSubmitConfirmModal(false)}>Batal</button>
+                            <button style={confirmStyles.btnKonfirmasi} onClick={handleConfirmSubmit} disabled={loading}>
+                                {loading ? 'Mengajukan...' : '✅ Ya, Kirim Keluhan'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -622,6 +767,27 @@ const styles = {
         fontSize: '12px',
         color: '#666'
     }
+};
+
+const confirmStyles = {
+    box: { backgroundColor: '#fff', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden', maxHeight: '90vh', overflowY: 'auto' },
+    header: { padding: '20px 24px', background: 'linear-gradient(135deg, #c0392b, #e74c3c)', display: 'flex', alignItems: 'center', gap: '14px', position: 'relative' },
+    headerIcon: { width: '46px', height: '46px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    headerTitle: { fontSize: '16px', fontWeight: '700', color: '#fff', lineHeight: '1.3' },
+    headerSubtitle: { fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginTop: '3px' },
+    closeBtn: { position: 'absolute', top: '14px', right: '14px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
+    body: { padding: '20px 24px 8px' },
+    section: { backgroundColor: '#f8f8f8', borderRadius: '12px', padding: '14px 16px', marginBottom: '14px' },
+    sectionTitle: { fontSize: '11px', fontWeight: '700', color: '#555', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' },
+    row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #ececec' },
+    rowKey: { fontSize: '13px', color: '#666', fontWeight: '500', flexShrink: 0, marginRight: '10px' },
+    rowVal: { fontSize: '13px', fontWeight: '600', color: '#333', textAlign: 'right' },
+    descSection: { marginBottom: '14px' },
+    descBox: { backgroundColor: '#f8f8f8', border: '1px solid #e8e8e8', borderRadius: '10px', padding: '12px 14px', fontSize: '13px', color: '#555', lineHeight: '1.7', whiteSpace: 'pre-wrap', marginTop: '8px' },
+    infoBox: { display: 'flex', alignItems: 'flex-start', gap: '10px', backgroundColor: '#fff5f5', borderLeft: '4px solid #e74c3c', borderRadius: '10px', padding: '12px 14px', marginBottom: '4px' },
+    footer: { padding: '16px 24px 24px', display: 'flex', gap: '10px', justifyContent: 'flex-end' },
+    btnBatal: { padding: '11px 22px', borderRadius: '10px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', color: '#555', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+    btnKonfirmasi: { padding: '11px 26px', borderRadius: '10px', border: 'none', color: '#fff', fontSize: '14px', fontWeight: '700', cursor: 'pointer', background: 'linear-gradient(135deg, #c0392b, #e74c3c)', boxShadow: '0 4px 14px rgba(192,57,43,0.3)' },
 };
 
 export default AduanKeluhan;

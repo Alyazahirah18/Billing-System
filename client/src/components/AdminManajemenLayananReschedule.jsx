@@ -35,7 +35,7 @@ const AdminManajemenLayananReschedule = ({ user }) => {
     const fetchRescheduleData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/reschedule', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/reschedule`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setStats(res.data.stats);
@@ -63,7 +63,7 @@ const AdminManajemenLayananReschedule = ({ user }) => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/dashboard/admin/layanan/reschedule/update',
+            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/reschedule/update`,
                 { id_reschedule: selectedItem.id_reschedule, status: newStatus },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

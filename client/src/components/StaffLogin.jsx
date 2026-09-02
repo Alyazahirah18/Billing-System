@@ -18,7 +18,7 @@ const StaffLogin = ({ setUser }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/staff-login', formData);
+            const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/staff-login`, formData);
 
             const userData = res.data.user;
             setUser(userData);
@@ -149,7 +149,10 @@ const styles = {
     },
     navLeft: { display: 'flex', alignItems: 'center' },
     navRight: { display: 'flex', alignItems: 'center', gap: '28px' },
-    logo: { height: '40px' },
+    logo: {
+        height: '50px',
+        objectFit: 'contain',
+    },
     navLink: { color: '#fff', textDecoration: 'none', fontSize: '16px', fontWeight: '600' },
     contentArea: { flex: 1, padding: '24px 50px 40px' },
     headerRow: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' },

@@ -28,7 +28,7 @@ const OwnerDashboard = () => {
     const fetchDashboardData = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('http://localhost:5000/api/dashboard/owner', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/owner`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setStats(res.data.stats);

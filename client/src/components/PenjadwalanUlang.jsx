@@ -18,6 +18,7 @@ const PenjadwalanUlang = ({ user }) => {
     // Modal
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedRiwayat, setSelectedRiwayat] = useState(null);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     useEffect(() => {
         fetchTickets();
@@ -27,7 +28,7 @@ const PenjadwalanUlang = ({ user }) => {
     const fetchTickets = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/pelanggan/tickets', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/pelanggan/tickets`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTickets(res.data);
@@ -53,7 +54,7 @@ const PenjadwalanUlang = ({ user }) => {
     const fetchRiwayatReschedule = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/pelanggan/reschedule/riwayat', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/pelanggan/reschedule/riwayat`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data && res.data.data) {
@@ -75,17 +76,21 @@ const PenjadwalanUlang = ({ user }) => {
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
         if (!selectedTicket || !kategori || !tanggalBaru || !waktuBaru || !deskripsi) {
             alert('Semua field wajib diisi.');
             return;
         }
+        setShowConfirmModal(true);
+    };
 
+    const handleConfirmSubmit = async () => {
+        setShowConfirmModal(false);
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/dashboard/pelanggan/reschedule', {
+            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/pelanggan/reschedule`, {
                 id_ticket: selectedTicket.id_ticket,
                 tanggal_baru: tanggalBaru,
                 jam_baru: waktuBaru,
@@ -196,6 +201,7 @@ const PenjadwalanUlang = ({ user }) => {
                                         <option value="Router Rusak">Router Rusak</option>
                                         <option value="Kabel Putus">Kabel Putus</option>
                                         <option value="Router Mati">Router Mati</option>
+                                        <option value="Instalasi Pemasangan">Instalasi Pemasangan</option>
                                     </select>
                                 </div>
 
@@ -348,6 +354,79 @@ const PenjadwalanUlang = ({ user }) => {
                                     {getStatusStyle(selectedRiwayat.status).text}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Konfirmasi Reschedule Modal */}
+            {showConfirmModal && (
+                <div style={styles.modalOverlay} onClick={() => setShowConfirmModal(false)}>
+                    <div style={confirmStyles.box} onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
+                        <div style={confirmStyles.header}>
+                            <div style={confirmStyles.headerIcon}>
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={confirmStyles.headerTitle}>Konfirmasi Penjadwalan Ulang</div>
+                                <div style={confirmStyles.headerSubtitle}>Periksa kembali detail pengajuan Anda</div>
+                            </div>
+                            <button style={confirmStyles.closeBtn} onClick={() => setShowConfirmModal(false)}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div style={confirmStyles.body}>
+                            <div style={confirmStyles.section}>
+                                <div style={confirmStyles.sectionTitle}>📋 Detail Pengajuan</div>
+                                <div style={confirmStyles.row}>
+                                    <span style={confirmStyles.rowKey}>Nomor E-Ticket</span>
+                                    <span style={confirmStyles.rowVal}>{selectedTicket?.e_ticket || '-'}</span>
+                                </div>
+                                <div style={confirmStyles.row}>
+                                    <span style={confirmStyles.rowKey}>Nama Pelanggan</span>
+                                    <span style={confirmStyles.rowVal}>{selectedTicket?.nama_pelanggan || '-'}</span>
+                                </div>
+                                <div style={confirmStyles.row}>
+                                    <span style={confirmStyles.rowKey}>Kategori Aduan</span>
+                                    <span style={confirmStyles.rowVal}>{kategori || '-'}</span>
+                                </div>
+                                <div style={confirmStyles.row}>
+                                    <span style={confirmStyles.rowKey}>Tanggal Baru</span>
+                                    <span style={{ ...confirmStyles.rowVal, color: '#5b6abf', fontWeight: '700' }}>{tanggalBaru || '-'}</span>
+                                </div>
+                                <div style={{ ...confirmStyles.row, borderBottom: 'none' }}>
+                                    <span style={confirmStyles.rowKey}>Waktu Baru</span>
+                                    <span style={{ ...confirmStyles.rowVal, color: '#5b6abf', fontWeight: '700' }}>{waktuBaru || '-'}</span>
+                                </div>
+                            </div>
+
+                            <div style={confirmStyles.descSection}>
+                                <div style={confirmStyles.sectionTitle}>✏️ Alasan Reschedule</div>
+                                <div style={confirmStyles.descBox}>{deskripsi}</div>
+                            </div>
+
+                            <div style={confirmStyles.infoBox}>
+                                <span style={{ fontSize: '15px' }}>ℹ️</span>
+                                <span style={{ fontSize: '13px', color: '#5b4fcf' }}>Pengajuan penjadwalan ulang akan dikirim ke admin dan teknisi untuk ditindaklanjuti.</span>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={confirmStyles.footer}>
+                            <button style={confirmStyles.btnBatal} onClick={() => setShowConfirmModal(false)}>Batal</button>
+                            <button style={confirmStyles.btnKonfirmasi} onClick={handleConfirmSubmit} disabled={loading}>
+                                {loading ? 'Mengajukan...' : '✅ Ya, Ajukan Reschedule'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -602,6 +681,27 @@ const styles = {
         marginBottom: '15px',
         border: '1px solid #eee'
     }
+};
+
+const confirmStyles = {
+    box: { backgroundColor: '#fff', borderRadius: '20px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden', maxHeight: '90vh', overflowY: 'auto' },
+    header: { padding: '20px 24px', background: 'linear-gradient(135deg, #5b6abf, #7c8ce8)', display: 'flex', alignItems: 'center', gap: '14px', position: 'relative' },
+    headerIcon: { width: '46px', height: '46px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    headerTitle: { fontSize: '16px', fontWeight: '700', color: '#fff', lineHeight: '1.3' },
+    headerSubtitle: { fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginTop: '3px' },
+    closeBtn: { position: 'absolute', top: '14px', right: '14px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 },
+    body: { padding: '20px 24px 8px' },
+    section: { backgroundColor: '#f8f8f8', borderRadius: '12px', padding: '14px 16px', marginBottom: '14px' },
+    sectionTitle: { fontSize: '11px', fontWeight: '700', color: '#555', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' },
+    row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #ececec' },
+    rowKey: { fontSize: '13px', color: '#666', fontWeight: '500', flexShrink: 0, marginRight: '10px' },
+    rowVal: { fontSize: '13px', fontWeight: '600', color: '#333', textAlign: 'right' },
+    descSection: { marginBottom: '14px' },
+    descBox: { backgroundColor: '#f8f8f8', border: '1px solid #e8e8e8', borderRadius: '10px', padding: '12px 14px', fontSize: '13px', color: '#555', lineHeight: '1.7', whiteSpace: 'pre-wrap', marginTop: '8px' },
+    infoBox: { display: 'flex', alignItems: 'flex-start', gap: '10px', backgroundColor: '#f0eeff', borderLeft: '4px solid #6c63ff', borderRadius: '10px', padding: '12px 14px', marginBottom: '4px' },
+    footer: { padding: '16px 24px 24px', display: 'flex', gap: '10px', justifyContent: 'flex-end' },
+    btnBatal: { padding: '11px 22px', borderRadius: '10px', border: '1.5px solid #e0e0e0', backgroundColor: '#fff', color: '#555', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
+    btnKonfirmasi: { padding: '11px 26px', borderRadius: '10px', border: 'none', color: '#fff', fontSize: '14px', fontWeight: '700', cursor: 'pointer', background: 'linear-gradient(135deg, #5b6abf, #7c8ce8)', boxShadow: '0 4px 14px rgba(91,106,191,0.3)' },
 };
 
 export default PenjadwalanUlang;

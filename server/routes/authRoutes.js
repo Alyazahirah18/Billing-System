@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const verifyToken = require('../middleware/authMiddleware');
 require('dotenv').config();
 
-// Helper to generate KODE_PELANGGAN (format: SGP + random number, atau sesuai kebutuhan)
+// generate KODE_PELANGGAN
 const generateKodePelanggan = async () => {
     // Cari kode pelanggan terakhir
     const lastPelanggan = await Pelanggan.findOne({
@@ -17,14 +17,12 @@ const generateKodePelanggan = async () => {
     let newNumber = 1;
     if (lastPelanggan && lastPelanggan.KODE_PELANGGAN) {
         const lastCode = lastPelanggan.KODE_PELANGGAN;
-        // Extract angka dari kode (contoh: SGP123 -> 123)
         const match = lastCode.match(/\d+$/);
         if (match) {
             newNumber = parseInt(match[0]) + 1;
         }
     }
 
-    // Format: SGP + 3 digit angka (SGP001, SGP002, dll)
     const kodePelanggan = `SGP${newNumber.toString().padStart(3, '0')}`;
     return kodePelanggan;
 };
@@ -144,23 +142,22 @@ router.post('/login', async (req, res) => {
 
         let isMatch = false;
 
-        // Cek apakah password di database sudah dalam bentuk hash (bcrypt) atau masih plain text
-        // Hash bcrypt biasanya diawali dengan '$2a$', '$2b$', atau '$2y$' dan panjangnya 60 karakter
+        // cek password hash (bcrypt) 
         const isHashed = pelanggan.PASSWORD &&
             (pelanggan.PASSWORD.startsWith('$2a$') ||
                 pelanggan.PASSWORD.startsWith('$2b$') ||
                 pelanggan.PASSWORD.startsWith('$2y$'));
 
         if (isHashed) {
-            // Password sudah di-hash, gunakan bcrypt compare
+            // Password sudah di-hash, (bcrypt compare cek pass yg udh di hash)
             console.log('Password is hashed, using bcrypt compare');
             isMatch = await bcrypt.compare(PASSWORD, pelanggan.PASSWORD);
         } else {
-            // Password masih plain text (seperti data lama: 'alya123')
+            // password masih plain text (data lama)
             console.log('Password is plain text, comparing directly');
             isMatch = (PASSWORD === pelanggan.PASSWORD);
 
-            // Optional: Jika login berhasil dengan plain text, update ke hash untuk keamanan
+            // Jika login berhasil dengan plain text, update ke hash 
             if (isMatch) {
                 console.log('Migrating plain text password to hash');
                 const salt = await bcrypt.genSalt(10);
@@ -223,14 +220,14 @@ router.post('/staff-login', async (req, res) => {
 
         const validRole = role.toLowerCase();
 
-        // Cari pegawai yang username dan role-nya cocok
+        // Cari pegawai
         const pegawai = await Pegawai.findOne({ where: { USERNAME: username, ROLE: validRole } });
 
         if (!pegawai) {
             return res.status(401).json({ message: 'Username, role, atau password salah.' });
         }
 
-        // Cek password (bisa bcrypt, bisa plain text)
+        // Cek password
         let isMatch = false;
         const isHashed = pegawai.PASSWORD && (
             pegawai.PASSWORD.startsWith('$2a$') ||
@@ -272,7 +269,7 @@ router.post('/staff-login', async (req, res) => {
                     content: `Melakukan login ke sistem dengan peran "${validRole}"`,
                     datetime: new Date()
                 });
-                console.log(`🌱 [LOG AKTIVITAS] Staff Login dicatat untuk ${pegawai.USERNAME}`);
+                console.log(`[LOG AKTIVITAS] Staff Login dicatat untuk ${pegawai.USERNAME}`);
             }
         } catch (logErr) {
             console.error('Gagal mencatat log login staff:', logErr.message);
@@ -358,7 +355,7 @@ router.get('/wilayah', (req, res) => {
 
 // ============================================
 // POST /api/auth/migrate-passwords
-// Endpoint untuk migrasi password dari plain text ke hash (admin only)
+// Endpoint untuk migrasi password dari plain text ke hash
 // ============================================
 router.post('/migrate-passwords', async (req, res) => {
     try {

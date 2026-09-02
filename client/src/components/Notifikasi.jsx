@@ -21,14 +21,14 @@ const Notifikasi = ({ user }) => {
     const fetchNotifications = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/notifikasi', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/notifikasi`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(res.data);
             setLoading(false);
 
             // Mark all as read when opening this page
-            await axios.post('http://localhost:5000/api/notifikasi/mark-as-read', {}, {
+            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/notifikasi/mark-as-read`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
         } catch (err) {
@@ -42,7 +42,7 @@ const Notifikasi = ({ user }) => {
             setModalLoading(true);
             try {
                 const token = localStorage.getItem('token');
-                const res = await axios.get(`http://localhost:5000/api/dashboard/pelanggan/ticket-detail/${notif.RELATED_ID}`, {
+                const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/pelanggan/ticket-detail/${notif.RELATED_ID}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setTicketDetail(res.data);
@@ -59,7 +59,7 @@ const Notifikasi = ({ user }) => {
     const handleConfirmTicket = async () => {
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/dashboard/pelanggan/ticket-confirm', {
+            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/pelanggan/ticket-confirm`, {
                 id_ticket: ticketDetail.id_ticket
             }, {
                 headers: { Authorization: `Bearer ${token}` }

@@ -15,7 +15,7 @@ const Tagihan = ({ user }) => {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/pelanggan/tagihan-aktif', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/pelanggan/tagihan-aktif`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             console.log('Tagihan data received:', res.data);
@@ -36,7 +36,7 @@ const Tagihan = ({ user }) => {
             const token = localStorage.getItem('token');
             
             // 1. Buat Snap Token transaksi melalui API pay-bill
-            const res = await axios.post('http://localhost:5000/api/payment/pay-bill', {
+            const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/payment/pay-bill`, {
                 id_tagihan: billData.bill.id_tagihan
             }, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -50,7 +50,7 @@ const Tagihan = ({ user }) => {
                     console.log('Payment success callback:', result);
                     try {
                         // 3. Konfirmasi pembayaran sukses ke backend
-                        const confirmRes = await axios.post('http://localhost:5000/api/payment/success', {
+                        const confirmRes = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/payment/success`, {
                             order_id: result.order_id
                         }, {
                             headers: { Authorization: `Bearer ${token}` }

@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // Max 5MB
     fileFilter: (req, file, cb) => {
@@ -86,9 +86,13 @@ router.post('/', verifyToken, upload.single('foto'), async (req, res) => {
 router.get('/riwayat', verifyToken, async (req, res) => {
     try {
         const id_pelanggan = req.user.id;
+        const { Op } = require('sequelize');
 
         const riwayat = await Aduan.findAll({
-            where: { ID_PELANGGAN: id_pelanggan },
+            where: {
+                ID_PELANGGAN: id_pelanggan,
+                SUBJEK: { [Op.ne]: 'Instalasi Pemasangan' }
+            },
             include: [{
                 model: Ticket,
                 attributes: ['TICKET_STATUS', 'ID_TICKET']
@@ -124,7 +128,7 @@ router.post('/konfirmasi/:id', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Data aduan tidak ditemukan atau bukan milik Anda.' });
         }
 
-        // Pastikan status aduan saat ini adalah 'proses' (Menunggu Perbaikan)
+        // Pastiin status aduan saat ini adalah 'proses' (Menunggu Perbaikan)
         if (aduan.STATUS_ADUAN !== 'proses') {
             return res.status(400).json({ message: 'Hanya aduan dengan status Menunggu Perbaikan yang dapat dikonfirmasi.' });
         }
@@ -145,6 +149,50 @@ router.post('/konfirmasi/:id', verifyToken, async (req, res) => {
     } catch (err) {
         console.error('Error konfirmasi aduan:', err);
         res.status(500).json({ message: 'Gagal mengonfirmasi aduan selesai.', error: err.message });
+    }
+});
+
+// ============================================
+// POST /api/aduan/konfirmasi-belum/:id
+// Pelanggan mengonfirmasi bahwa aduan belum selesai ditangani
+// ============================================
+router.post('/konfirmasi-belum/:id', verifyToken, async (req, res) => {
+    try {
+        const id_pelanggan = req.user.id;
+        const id_aduan = req.params.id;
+
+        const aduan = await Aduan.findOne({
+            where: {
+                ID_ADUAN: id_aduan,
+                ID_PELANGGAN: id_pelanggan
+            }
+        });
+
+        if (!aduan) {
+            return res.status(404).json({ message: 'Data aduan tidak ditemukan atau bukan milik Anda.' });
+        }
+
+        // Pastikan status aduan saat ini adalah 'proses' (Menunggu Perbaikan)
+        if (aduan.STATUS_ADUAN !== 'proses') {
+            return res.status(400).json({ message: 'Hanya aduan dengan status Menunggu Perbaikan yang dapat dikonfirmasi.' });
+        }
+
+        // Update status aduan menjadi 'pengajuan ulang'
+        await aduan.update({ STATUS_ADUAN: 'pengajuan ulang' });
+
+        // Buat Notifikasi untuk Pelanggan bahwa pengajuan ulang telah dikirim
+        await Notifikasi.create({
+            ID_PELANGGAN: id_pelanggan,
+            JUDUL: 'Pengajuan Ulang Aduan',
+            DESKRIPSI_PESAN: `Anda telah mengonfirmasi bahwa aduan mengenai "${aduan.SUBJEK}" belum selesai ditangani. Aduan Anda telah diajukan ulang ke admin.`,
+            KATEGORI_NOTIFIKASI: 'aduan',
+            TANGGAL_NOTIFIKASI: new Date()
+        });
+
+        res.json({ message: 'Aduan berhasil diajukan ulang.' });
+    } catch (err) {
+        console.error('Error konfirmasi aduan belum selesai:', err);
+        res.status(500).json({ message: 'Gagal mengajukan ulang aduan.', error: err.message });
     }
 });
 

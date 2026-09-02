@@ -4,7 +4,7 @@ import DashboardLayout from './DashboardLayout';
 
 const AdminManajemenLayananAduan = ({ user }) => {
     const [data, setData] = useState([]);
-    const [stats, setStats] = useState({ total: 0, pending: 0, proses: 0, selesai: 0 });
+    const [stats, setStats] = useState({ total: 0, pending: 0, proses: 0, selesai: 0, pengajuanUlang: 0 });
     const [loading, setLoading] = useState(true);
 
     // Filter & Search
@@ -33,7 +33,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
     const fetchAduanData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/aduan', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/aduan`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setStats(res.data.stats);
@@ -60,7 +60,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
 
         try {
             const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/dashboard/admin/layanan/aduan/update',
+            await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/aduan/update`,
                 { id_aduan: selectedItem.id_aduan, status: newStatus },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -84,6 +84,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
         if (statusFilter !== 'Semua Status') {
             if (statusFilter === 'Pending') matchStatus = item.status === 'pending';
             if (statusFilter === 'Menunggu Perbaikan') matchStatus = item.status === 'proses';
+            if (statusFilter === 'Pengajuan Ulang') matchStatus = item.status === 'pengajuan ulang';
             if (statusFilter === 'Selesai') matchStatus = item.status === 'selesai';
         }
 
@@ -94,6 +95,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
         if (status === 'pending') return 'Pending';
         if (status === 'proses') return 'Menunggu Perbaikan';
         if (status === 'selesai') return 'Selesai';
+        if (status === 'pengajuan ulang') return 'Pengajuan Ulang';
         return status;
     };
 
@@ -101,6 +103,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
         if (status === 'pending') return '#f1c40f'; // Yellow
         if (status === 'proses') return '#e74c3c';  // Red
         if (status === 'selesai') return '#2ecc71'; // Green
+        if (status === 'pengajuan ulang') return '#e67e22'; // Orange
         return '#333';
     };
 
@@ -167,6 +170,18 @@ const AdminManajemenLayananAduan = ({ user }) => {
                             </div>
                         </div>
 
+                        <div style={{ ...styles.statCard, backgroundColor: '#fdf2e9' }}>
+                            <div style={styles.statIconWrapper}>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e67e22" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                                </svg>
+                            </div>
+                            <div style={styles.statInfo}>
+                                <div style={styles.statLabel}>Pengajuan Ulang</div>
+                                <div style={styles.statValue}>{stats.pengajuanUlang || 0}</div>
+                            </div>
+                        </div>
+
                         <div style={{ ...styles.statCard, backgroundColor: '#e2fcf2' }}>
                             <div style={styles.statIconWrapper}>
                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2b2a4c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -197,6 +212,7 @@ const AdminManajemenLayananAduan = ({ user }) => {
                             <option value="Semua Status">Semua Status</option>
                             <option value="Pending">Pending</option>
                             <option value="Menunggu Perbaikan">Menunggu Perbaikan</option>
+                            <option value="Pengajuan Ulang">Pengajuan Ulang</option>
                             <option value="Selesai">Selesai</option>
                         </select>
                     </div>
@@ -283,12 +299,12 @@ const AdminManajemenLayananAduan = ({ user }) => {
                             {selectedItem.foto && (
                                 <div style={{ marginTop: '15px' }}>
                                     <div style={styles.detailLabel}>Foto Kendala:</div>
-                                    <img src={`http://localhost:5000${selectedItem.foto}`} alt="Bukti Kendala" style={styles.fotoBukti} />
+                                    <img src={`${import.meta.env.VITE_BACKEND_URL}${selectedItem.foto}`} alt="Bukti Kendala" style={styles.fotoBukti} />
                                 </div>
                             )}
 
-                            {/* Tombol Aksi - Hanya tampil jika status masih pending */}
-                            {selectedItem.status === 'pending' && (
+                            {/* Tombol Aksi - Tampil jika status pending atau pengajuan ulang */}
+                            {(selectedItem.status === 'pending' || selectedItem.status === 'pengajuan ulang') && (
                                 <div style={styles.actionButtonsContainer}>
                                     <button
                                         style={styles.menungguBtn}

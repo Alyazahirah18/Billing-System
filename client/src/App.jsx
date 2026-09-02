@@ -57,7 +57,7 @@ function AppContent() {
     requestForToken().then((token) => {
       if (token && user && !user.isStaff) {
         const authToken = localStorage.getItem('token');
-        fetch('http://localhost:5000/api/auth/save-fcm-token', {
+        fetch(`${import.meta.env.VITE_BACKEND_URL}/api/auth/save-fcm-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

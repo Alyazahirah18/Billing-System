@@ -29,7 +29,7 @@ const Aduan = sequelize.define('Aduan', {
         allowNull: true
     },
     STATUS_ADUAN: {
-        type: DataTypes.ENUM('pending', 'proses', 'selesai'),
+        type: DataTypes.ENUM('pending', 'proses', 'selesai', 'pengajuan ulang'),
         defaultValue: 'pending'
     },
     TANGGAL_ADUAN: {

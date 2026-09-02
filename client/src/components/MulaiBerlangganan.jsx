@@ -13,7 +13,7 @@ const MulaiBerlangganan = ({ user }) => {
         const fetchPaket = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const res = await axios.get('http://localhost:5000/api/paket', {
+                const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/paket`, {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -69,7 +69,7 @@ const MulaiBerlangganan = ({ user }) => {
             });
 
             // 1. Dapatkan token Snap dari backend
-            const res = await axios.post('http://localhost:5000/api/payment/create-transaction', {
+            const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/payment/create-transaction`, {
                 id_pelanggan: user?.id,
                 id_paket: selectedPaket
             }, {
@@ -88,7 +88,7 @@ const MulaiBerlangganan = ({ user }) => {
                     
                     try {
                         // 3. Konfirmasi ke backend
-                        const confirmRes = await axios.post('http://localhost:5000/api/payment/success', {
+                        const confirmRes = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/payment/success`, {
                             order_id: result.order_id,
                             id_paket: selectedPaket
                         }, {

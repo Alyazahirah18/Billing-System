@@ -11,6 +11,7 @@ const { Op } = require('sequelize');
 router.post('/bayar', verifyToken, async (req, res) => {
     try {
         const { id_pelanggan, id_paket } = req.body;
+        const { Aduan } = require('../models');
 
         // Validasi input
         if (!id_pelanggan || !id_paket) {
@@ -32,10 +33,23 @@ router.post('/bayar', verifyToken, async (req, res) => {
         }
 
         // Update status pelanggan: calon → aktif + set paket
+        const wasCalon = pelanggan.STATUS_PELANGGAN === 'calon';
         await pelanggan.update({
+            STATUS_PELANGGAN: 'aktif',
+            STATUS_LAYANAN: 'aktif',
             STATUS_LANGGANAN: 'aktif',
             ID_PAKET: id_paket
         });
+
+        if (wasCalon) {
+            await Aduan.create({
+                ID_PELANGGAN: pelanggan.ID_PELANGGAN,
+                SUBJEK: 'Instalasi Pemasangan',
+                DESKRIPSI_MASALAH: 'Pemasangan perangkat baru setelah aktivasi pelanggan.',
+                STATUS_ADUAN: 'proses',
+                TANGGAL_ADUAN: new Date()
+            });
+        }
 
         res.json({
             message: 'Pembayaran berhasil! Status berlangganan diaktifkan.',
@@ -45,7 +59,7 @@ router.post('/bayar', verifyToken, async (req, res) => {
                 telepon: pelanggan.TELEPON,
                 alamat: pelanggan.ALAMAT,
                 alamat_wilayah: pelanggan.ALAMAT_WILAYAH,
-                status_langganan: pelanggan.STATUS_LANGGANAN,
+                status_langganan: pelanggan.STATUS_PELANGGAN || 'aktif',
                 id_paket: pelanggan.ID_PAKET
             }
         });
@@ -209,7 +223,7 @@ router.get('/admin/list', verifyToken, async (req, res) => {
                 triggerDate.setHours(0, 0, 0, 0);
 
                 if (todayDate < triggerDate) {
-                    console.log(`🧹 Menghapus tagihan prematur ${t.ID_TRANSAKSI} karena belum memasuki H-10.`);
+                    console.log(`Menghapus tagihan prematur ${t.ID_TRANSAKSI} karena belum memasuki H-10.`);
                     await t.destroy();
                 }
             }
@@ -251,7 +265,7 @@ router.get('/admin/list', verifyToken, async (req, res) => {
             if (targetJatuhTempoDate) {
                 targetJatuhTempoDate.setHours(0, 0, 0, 0);
                 jatuhTempoFormatted = targetJatuhTempoDate.toLocaleDateString('id-ID', {
-                    day: 'numeric', month: 'long', year: 'numeric'
+                    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
                 });
             }
 
@@ -332,7 +346,7 @@ router.put('/admin/:id', verifyToken, async (req, res) => {
             return res.status(404).json({ message: 'Pelanggan tidak ditemukan.' });
         }
 
-        // Cek jika KODE_PELANGGAN sudah digunakan oleh orang lain
+        // Cek KODE_PELANGGAN
         if (KODE_PELANGGAN && KODE_PELANGGAN !== pelanggan.KODE_PELANGGAN) {
             const existing = await Pelanggan.findOne({ where: { KODE_PELANGGAN } });
             if (existing) {

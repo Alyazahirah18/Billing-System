@@ -78,7 +78,7 @@ const AdminManajemenETicketing = ({ user }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/eticketing', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/eticketing`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setData(res.data);
@@ -91,7 +91,7 @@ const AdminManajemenETicketing = ({ user }) => {
 
     const fetchWilayah = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/auth/wilayah');
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/auth/wilayah`);
             setWilayahList(res.data);
         } catch (err) {
             console.error("Gagal mengambil data wilayah", err);
@@ -101,7 +101,7 @@ const AdminManajemenETicketing = ({ user }) => {
     const fetchTeknisi = async (wilayah) => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:5000/api/dashboard/admin/layanan/teknisi/${encodeURIComponent(wilayah)}`, {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/teknisi/${encodeURIComponent(wilayah)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTeknisiList(res.data);
@@ -113,7 +113,7 @@ const AdminManajemenETicketing = ({ user }) => {
     const fetchPelangganAll = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/pelanggan-all', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/pelanggan-all`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPelangganList(res.data);
@@ -202,7 +202,7 @@ const AdminManajemenETicketing = ({ user }) => {
                     wilayah: formData.wilayah,
                     deskripsi: formData.deskripsi
                 };
-                await axios.post('http://localhost:5000/api/dashboard/admin/layanan/eticketing/manual', payload, {
+                await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/eticketing/manual`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 alert('E-ticket manual berhasil dibuat dan ditugaskan.');
@@ -219,12 +219,12 @@ const AdminManajemenETicketing = ({ user }) => {
                 };
 
                 if (isRescheduleMode && originalTicketId) {
-                    await axios.put(`http://localhost:5000/api/dashboard/admin/layanan/eticketing/${originalTicketId}`, payload, {
+                    await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/eticketing/${originalTicketId}`, payload, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     alert('E-ticket berhasil diperbarui sesuai jadwal reschedule.');
                 } else {
-                    await axios.post('http://localhost:5000/api/dashboard/admin/layanan/eticketing', payload, {
+                    await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/eticketing`, payload, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     alert('E-ticket berhasil dibuat dan ditugaskan.');

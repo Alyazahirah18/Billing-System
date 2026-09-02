@@ -61,7 +61,7 @@ const Register = ({ setUser }) => {
                 alamat_wilayah: formData.alamat_wilayah
             });
 
-            const res = await axios.post('http://localhost:5000/api/auth/register', {
+            const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/register`, {
                 nama: formData.nama,
                 PASSWORD: formData.PASSWORD,
                 NO_HP: formData.NO_HP,

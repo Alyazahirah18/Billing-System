@@ -58,7 +58,7 @@ const DashboardLayout = ({ children, activeMenu, pageTitle, user, hideHeader = f
     const fetchUnreadCount = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/notifikasi/unread-count', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/notifikasi/unread-count`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setUnreadCount(res.data.unreadCount);
@@ -75,7 +75,7 @@ const DashboardLayout = ({ children, activeMenu, pageTitle, user, hideHeader = f
             const lastOpenedLayanan = localStorage.getItem('adminLastOpenedLayanan') || '';
             const lastOpenedEticketing = localStorage.getItem('adminLastOpenedEticketing') || '';
 
-            const url = `http://localhost:5000/api/dashboard/admin/sidebar-notifications?` +
+            const url = `${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/sidebar-notifications?` +
                 `lastOpenedPelanggan=${encodeURIComponent(lastOpenedPelanggan)}&` +
                 `lastOpenedTagihan=${encodeURIComponent(lastOpenedTagihan)}&` +
                 `lastOpenedLayanan=${encodeURIComponent(lastOpenedLayanan)}&` +

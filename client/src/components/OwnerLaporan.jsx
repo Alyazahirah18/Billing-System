@@ -38,7 +38,7 @@ const OwnerLaporan = () => {
         try {
             setLoading(true);
             setHasQueried(true);
-            const res = await axios.get('http://localhost:5000/api/dashboard/owner/laporan', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/owner/laporan`, {
                 params: {
                     jenis: selectedJenis,
                     startDate,

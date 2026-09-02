@@ -20,7 +20,7 @@ const AdminManajemenLayananUpgrade = ({ user }) => {
     const fetchUpgradeData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/dashboard/admin/layanan/upgrade', {
+            const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/upgrade`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTotal(res.data.total);
@@ -44,7 +44,7 @@ const AdminManajemenLayananUpgrade = ({ user }) => {
         
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.post('http://localhost:5000/api/dashboard/admin/layanan/upgrade/confirm', 
+            const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/dashboard/admin/layanan/upgrade/confirm`, 
                 { id_upgrade }, 
                 { headers: { Authorization: `Bearer ${token}` } }
             );
