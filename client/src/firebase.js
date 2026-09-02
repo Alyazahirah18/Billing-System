@@ -2,16 +2,16 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Firebase configuration loaded from environment variables
+// Salin .env.example ke .env dan isi nilainya
 const firebaseConfig = {
-    apiKey: "AIzaSyBNqEs4PoopPsuLksQZWX_LPJgK0tKeLqs",
-    authDomain: "billing-system-signal.firebaseapp.com",
-    projectId: "billing-system-signal",
-    storageBucket: "billing-system-signal.firebasestorage.app",
-    messagingSenderId: "1033432144966",
-    appId: "1:1033432144966:web:5fc77cefc4a04a40d8fe47",
-    measurementId: "G-BP7NR1XLYP"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
@@ -20,7 +20,7 @@ const analytics = getAnalytics(app);
 const messaging = getMessaging(app);
 
 export const requestForToken = () => {
-    return getToken(messaging, { vapidKey: "BLegiKEAhrYYMopFJbES3gsOE91JN4WwbH5kB8S08mTIQUUhnhk84sU0lP0IClFHrNEYaEHedUhn_E9vmP_4fIs" })
+    return getToken(messaging, { vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY })
         .then((currentToken) => {
             if (currentToken) {
                 console.log('Current token untuk client: ', currentToken);
